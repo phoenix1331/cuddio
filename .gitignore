@@ -1,0 +1,7 @@
+/build/
+/dist/
+/cuddio
+/cuddio.exe
+coverage.out
+*.test
+.claude/

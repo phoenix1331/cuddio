@@ -1,0 +1,37 @@
+version: "2"
+
+linters:
+  default: standard
+  enable:
+    - errorlint
+    - forbidigo
+    - gocritic
+    - gosec
+    - misspell
+    - nolintlint
+    - revive
+    - unconvert
+    - unparam
+  settings:
+    forbidigo:
+      forbid:
+        - pattern: ^(fmt\.Print(f|ln)?|print|println)$
+          msg: write to the command's io.Writer instead
+    misspell:
+      locale: UK
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+  exclusions:
+    presets:
+      - std-error-handling
+    rules:
+      # Tests run the go tool with fixed arguments and write to temporary directories
+      - path: _test\.go
+        linters:
+          - gosec
+
+formatters:
+  enable:
+    - gofmt
+    - goimports

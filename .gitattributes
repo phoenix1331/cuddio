@@ -1,0 +1,26 @@
+# LF everywhere, so gofmt and golden files behave the same on Windows checkouts
+* text=auto eol=lf
+
+# Fixtures are compared byte for byte, including CRLF variants
+testdata/** -text
+
+# Not part of GitHub source archives
+/.github            export-ignore
+/.githooks          export-ignore
+/docs               export-ignore
+/examples           export-ignore
+/scripts            export-ignore
+/tapes              export-ignore
+testdata            export-ignore
+/.editorconfig      export-ignore
+/.gitattributes     export-ignore
+/.gitignore         export-ignore
+/.golangci.yml      export-ignore
+/.goreleaser.yaml   export-ignore
+/CODE_OF_CONDUCT.md export-ignore
+/CONTEXT.md         export-ignore
+/CONTRIBUTING.md    export-ignore
+/LEARNING.md        export-ignore
+/RELEASING.md       export-ignore
+/SECURITY.md        export-ignore
+/UPGRADING.md       export-ignore

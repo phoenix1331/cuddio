@@ -1,0 +1,17 @@
+#!/bin/sh
+# Blocks commits with unformatted Go files or known vulnerabilities reachable from the code
+set -eu
+
+unformatted=$(gofmt -l .)
+if [ -n "$unformatted" ]; then
+  echo "pre-commit: run gofmt -w on these files:" >&2
+  echo "$unformatted" >&2
+  exit 1
+fi
+
+if ! command -v govulncheck > /dev/null 2>&1; then
+  echo "pre-commit: govulncheck is missing: go install golang.org/x/vuln/cmd/govulncheck@latest" >&2
+  exit 1
+fi
+
+govulncheck ./...

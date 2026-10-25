@@ -1,0 +1,15 @@
+#!/bin/sh
+# Rejects commit messages that are not entirely lowercase conventional commits without a scope
+
+message=$(grep -v '^#' "$1")
+lower=$(printf '%s' "$message" | tr '[:upper:]' '[:lower:]')
+
+if [ "$message" != "$lower" ]; then
+  echo "commit-msg: the message must be entirely lowercase" >&2
+  exit 1
+fi
+
+if ! printf '%s\n' "$message" | head -n 1 | grep -Eq '^(feat|fix|chore|refactor|style|test|perf|ci|build|revert): .+'; then
+  echo "commit-msg: use '<type>: <description>' with feat, fix, chore, refactor, style, test, perf, ci, build or revert, and no scope" >&2
+  exit 1
+fi

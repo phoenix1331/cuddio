@@ -20,7 +20,6 @@ testdata            export-ignore
 /CODE_OF_CONDUCT.md export-ignore
 /CONTEXT.md         export-ignore
 /CONTRIBUTING.md    export-ignore
-/LEARNING.md        export-ignore
 /RELEASING.md       export-ignore
 /SECURITY.md        export-ignore
 /UPGRADING.md       export-ignore

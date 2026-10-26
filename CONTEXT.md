@@ -19,7 +19,7 @@ First of a planned set of Welsh-named Go tools sharing one visual style for READ
 | `internal/rules/` | Built-in and vendored gitleaks rules (planned) |
 | `internal/textscan/` | Streaming scanner for plain text and logs (planned) |
 | `internal/sqlscan/` | Streaming SQL tokeniser, dialects, column tracking (planned) |
-| `internal/replace/` | Placeholders and fake values, consistent within a run (planned) |
+| `internal/replace/` | Placeholder tokens consistent within a run, overlap resolution; fake values (planned) |
 | `internal/mapstore/` | Local mapping store, `0600` files with TTL (planned) |
 | `internal/clipboard/` | Clipboard access including WSL (planned) |
 | `internal/config/` | Config schema, defaults, project file discovery, strict YAML decoding, merging |
@@ -56,6 +56,9 @@ First of a planned set of Welsh-named Go tools sharing one visual style for READ
 | Rule IDs lowercase kebab case, labels uppercase, IDs never equal a category name | IDs match the gitleaks style; labels fit `<{label}_{n}>`; config names stay unambiguous |
 | Built-in allowlist is exact, case-sensitive values only (reserved domains, `test@example.com`, loopback, AWS and Stripe documentation keys) | A near miss is redacted, which is the safe failure; fixtures use `alice@example.com` and still get redacted |
 | Allowlist patterns match anywhere unless anchored; invalid patterns report the RE2 error code only | Matches Go's `regexp` behaviour; `regexp` errors quote the pattern, which may hold the secret being allowlisted |
+| Same value, same token for the whole run, keyed by value alone; each label numbered by first appearance | The AI can tell values apart across a file; one token per value keeps restore unambiguous even when two rules match it |
+| Overlaps: longest span wins, then lower rule priority, then earlier start | A whole DSN or private key beats a fragment inside it; ties stay deterministic |
+| Placeholder format must contain `{label}` and `{n}` | Without both, distinct values could share a token and restore would be lossy |
 
 ## Dependencies and constraints
 

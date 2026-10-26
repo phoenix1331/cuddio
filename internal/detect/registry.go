@@ -2,8 +2,11 @@ package detect
 
 import (
 	"cmp"
+	"errors"
 	"fmt"
 	"slices"
+
+	"github.com/phoenix1331/cuddio/internal/names"
 )
 
 // Registry holds every known rule in a fixed order: by category (secrets
@@ -95,11 +98,30 @@ func (r *Registry) split(enable, disable []string) (map[string]bool, map[Categor
 				continue
 			}
 			if _, ok := r.byID[name]; !ok {
-				return nil, nil, fmt.Errorf("unknown rule or category %q", name)
+				return nil, nil, r.unknownName(name)
 			}
 			ids[name] = list.state
 		}
 	}
 
 	return ids, cats, nil
+}
+
+// unknownName reports a name in enable or disable that matches no rule. The
+// name is repeated only as a near miss of a real one, so a value pasted into
+// the wrong list is never echoed.
+func (r *Registry) unknownName(name string) error {
+	known := make([]string, 0, len(categories)+len(r.rules))
+	for _, c := range categories {
+		known = append(known, string(c))
+	}
+	for _, rule := range r.rules {
+		known = append(known, rule.ID)
+	}
+
+	if near, ok := names.Nearest(name, known); ok {
+		return fmt.Errorf("unknown rule or category %q in enable or disable; did you mean %q?", name, near)
+	}
+
+	return errors.New("unknown rule or category in enable or disable")
 }

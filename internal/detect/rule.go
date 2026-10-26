@@ -3,6 +3,7 @@
 package detect
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"slices"
@@ -59,12 +60,14 @@ var (
 	validLabel = regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`)
 )
 
+// check validates r. An invalid ID or category is never repeated in the
+// error: config may hold a value in the wrong place, and it could be a secret.
 func (r Rule) check() error {
-	if !validID.MatchString(r.ID) {
-		return fmt.Errorf("rule %q: id must be lowercase letters, digits and single hyphens", r.ID)
+	if err := checkID(r.ID); err != nil {
+		return err
 	}
 	if categoryRank(r.Category) < 0 {
-		return fmt.Errorf("rule %s: unknown category %q", r.ID, r.Category)
+		return fmt.Errorf("rule %s: category must be secret or pii", r.ID)
 	}
 	if !validLabel.MatchString(r.Label) {
 		return fmt.Errorf("rule %s: label must be uppercase letters, digits and underscores", r.ID)
@@ -76,6 +79,14 @@ func (r Rule) check() error {
 		if k == "" || k != strings.ToLower(k) {
 			return fmt.Errorf("rule %s: keywords must be non-empty and lowercase", r.ID)
 		}
+	}
+
+	return nil
+}
+
+func checkID(id string) error {
+	if !validID.MatchString(id) {
+		return errors.New("rule id must be lowercase letters, digits and single hyphens")
 	}
 
 	return nil

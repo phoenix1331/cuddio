@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Built-in PII rules: email addresses, UK and E.164 phone numbers, public IPv4 and IPv6 addresses, Luhn-checked payment card numbers, UK National Insurance numbers and usernames in home directory paths (`/home/x`, `/Users/x`, `C:\Users\x`); private IP addresses and UK postcodes are available but off by default
 - Custom rules in config (`rules.custom`: `id`, `category`, `label`, RE2 `pattern`, with an optional `(?P<value>...)` group to hide only part of a match); a custom rule with a built-in's ID replaces it
 - Config files are checked as they load: invalid patterns, placeholder formats, modes, negative mapping TTLs and duplicate custom rule IDs are reported with the file name, never the offending value
+- Config errors never repeat a value from the file: unknown settings and rule names are named only as a near miss of a real one ("did you mean disable?"), and invalid custom rule IDs and categories are reported by position
 - Passwords in PDO DSNs (`pgsql:host=db;password=...`) and URL-encoded email addresses (`?email=alice%40example.com`) are now hidden
 - Only the secret part of a match is replaced (`DB_PASSWORD=<SECRET_1>`, `mysql://app:<PASSWORD_1>@db`), and empty values, `null`, references such as `${DB_PASSWORD}` and existing placeholders are left alone, so cleaning output twice changes nothing
 

@@ -122,8 +122,15 @@ func TestLoadErrors(t *testing.T) {
 		content string
 		want    string
 	}{
-		{"unknown key", "unknown: " + secret + "\n", "line 1: unknown setting unknown"},
-		{"unknown nested key", "rules:\n  disabled: [" + secret + "]\n", "line 2: unknown setting disabled"},
+		{"unknown key", "unknown: " + secret + "\n", "line 1: unknown setting"},
+		{"near miss of a key", "alowlist:\n  values: [" + secret + "]\n", "line 1: unknown setting; did you mean allowlist?"},
+		{"near miss suggests from its own section", "rules:\n  disabled: [" + secret + "]\n", "line 2: unknown setting; did you mean disable?"},
+		{"value written as a key", "allowlist:\n  " + secret + ": true\n", "line 2: unknown setting"},
+		{"duplicate key", "allowlist:\n  " + secret + ": 1\n  " + secret + ": 2\n", "line 3: mapping key already defined at line 2"},
+		{"unknown anchor", "mode: *" + secret + "\n", "unknown anchor referenced"},
+		{"unknown tag", "!!" + secret + " x\n", "line 1: cannot unmarshal a value with an unknown tag into config.Config"},
+		{"value in a custom rule id", "rules:\n  custom:\n    - {id: '" + secret + "', category: secret, label: ACME, pattern: x}\n", "custom rule 1: rule id must be lowercase letters, digits and single hyphens"},
+		{"value in a custom rule category", "rules:\n  custom:\n    - {id: acme, category: '" + secret + "', label: ACME, pattern: x}\n", "custom rule 1: rule acme: category must be secret or pii"},
 		{"wrong type", "mapping:\n  ttl: " + secret + "\n", "line 2: cannot unmarshal !!str a value into time.Duration"},
 		{"list where a mapping belongs", "allowlist: [" + secret + "]\n", "line 1: cannot unmarshal !!seq into config.Allowlist"},
 		{"invalid YAML", "mode: fake\n  bad: " + secret + "\n", "line 2: mapping values are not allowed in this context"},

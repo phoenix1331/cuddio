@@ -33,20 +33,21 @@ func validate(cfg Config) error {
 	return nil
 }
 
-// CustomRules compiles config-defined rules. IDs must be unique.
+// CustomRules compiles config-defined rules. IDs must be unique. Errors give
+// the rule's position, since an invalid ID is never repeated.
 func CustomRules(custom []CustomRule) ([]detect.Rule, error) {
 	rules := make([]detect.Rule, 0, len(custom))
 	seen := make(map[string]bool, len(custom))
-	for _, c := range custom {
+	for i, c := range custom {
+		// Checked first, so the duplicate error only ever repeats a valid ID
+		rule, err := detect.CustomRule(c.ID, c.Category, c.Label, c.Pattern)
+		if err != nil {
+			return nil, fmt.Errorf("custom rule %d: %w", i+1, err)
+		}
 		if seen[c.ID] {
 			return nil, fmt.Errorf("rule %s: defined more than once", c.ID)
 		}
 		seen[c.ID] = true
-
-		rule, err := detect.CustomRule(c.ID, c.Category, c.Label, c.Pattern)
-		if err != nil {
-			return nil, err
-		}
 		rules = append(rules, rule)
 	}
 

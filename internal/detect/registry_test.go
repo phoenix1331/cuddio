@@ -107,12 +107,28 @@ func TestSelect(t *testing.T) {
 func TestSelectRejectsUnknownNames(t *testing.T) {
 	t.Parallel()
 
+	tests := []struct {
+		name    string
+		enable  []string
+		disable []string
+		want    string
+	}{
+		{"near miss of a rule", []string{"emial"}, nil, `unknown rule or category "emial" in enable or disable; did you mean "email"?`},
+		{"near miss of a category", nil, []string{"secrets"}, `unknown rule or category "secrets" in enable or disable; did you mean "secret"?`},
+		{"value in the wrong list", []string{"sk_live_DO_NOT_ECHO"}, nil, "unknown rule or category in enable or disable"},
+		{"lowercase hex key", nil, []string{"4f1c2b9e8d7a6f5e4d3c2b1a0f9e8d7c"}, "unknown rule or category in enable or disable"},
+	}
+
 	reg := testRegistry(t)
-	for _, lists := range [][2][]string{{{"emial"}, nil}, {nil, {"secrets"}}} {
-		_, err := reg.Select(lists[0], lists[1])
-		if err == nil || !strings.Contains(err.Error(), "unknown rule or category") {
-			t.Errorf("Select(%v, %v) error = %v, want an unknown rule error", lists[0], lists[1], err)
-		}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := reg.Select(tt.enable, tt.disable)
+			if err == nil || err.Error() != tt.want {
+				t.Errorf("Select(%v, %v) error = %v, want %q", tt.enable, tt.disable, err, tt.want)
+			}
+		})
 	}
 }
 
@@ -140,7 +156,7 @@ func TestNewRegistryRejectsBadRules(t *testing.T) {
 		{"uppercase id", []Rule{rule("Email", PII, false)}, "id must be"},
 		{"double hyphen", []Rule{rule("aws--key", Secret, false)}, "id must be"},
 		{"trailing hyphen", []Rule{rule("aws-", Secret, false)}, "id must be"},
-		{"unknown category", []Rule{badCategory}, `unknown category "personal"`},
+		{"unknown category", []Rule{badCategory}, "rule email: category must be secret or pii"},
 		{"lowercase label", []Rule{badLabel}, "label must be"},
 		{"no pattern", []Rule{noPattern}, "no pattern"},
 		{"uppercase keyword", []Rule{upperKeyword}, "keywords must be non-empty and lowercase"},

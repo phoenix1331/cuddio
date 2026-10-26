@@ -6,6 +6,10 @@ import "fmt"
 // a compile error reports only the kind of problem, never the pattern, which
 // may contain the very value being searched for.
 func CustomRule(id, category, label, pattern string) (Rule, error) {
+	// Every error below names the rule, so its ID must be one first
+	if err := checkID(id); err != nil {
+		return Rule{}, err
+	}
 	if pattern == "" {
 		return Rule{}, fmt.Errorf("rule %s: no pattern", id)
 	}

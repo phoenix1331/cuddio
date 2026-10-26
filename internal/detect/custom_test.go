@@ -33,10 +33,11 @@ func TestCustomRuleErrors(t *testing.T) {
 		{"invalid regex", "acme", "secret", "ACME", secret + "(", "rule acme: invalid pattern: missing closing )"},
 		{"lookahead is not RE2", "acme", "secret", "ACME", secret + "(?=x)", "rule acme: invalid pattern: invalid or unsupported Perl syntax"},
 		{"empty pattern", "acme", "secret", "ACME", "", "rule acme: no pattern"},
-		{"unknown category", "acme", "credentials", "ACME", "x", `rule acme: unknown category "credentials"`},
-		{"missing category", "acme", "", "ACME", "x", `rule acme: unknown category ""`},
+		{"unknown category", "acme", secret, "ACME", "x", "rule acme: category must be secret or pii"},
+		{"missing category", "acme", "", "ACME", "x", "rule acme: category must be secret or pii"},
 		{"lowercase label", "acme", "pii", "acme", "x", "rule acme: label must be uppercase letters, digits and underscores"},
-		{"bad id", "Acme Token", "pii", "ACME", "x", `rule "Acme Token": id must be lowercase letters, digits and single hyphens`},
+		{"bad id", secret, "pii", "ACME", "x", "rule id must be lowercase letters, digits and single hyphens"},
+		{"bad id and bad pattern", secret, "pii", "ACME", "(", "rule id must be lowercase letters, digits and single hyphens"},
 		{"id is a category", "pii", "pii", "ACME", "x", "rule pii: id is a category name"},
 	}
 
@@ -49,7 +50,7 @@ func TestCustomRuleErrors(t *testing.T) {
 				t.Fatalf("CustomRule() error = %v, want %q", err, tt.want)
 			}
 			if strings.Contains(err.Error(), "sk_live") {
-				t.Errorf("error repeats the pattern: %q", err)
+				t.Errorf("error repeats a value from the rule: %q", err)
 			}
 		})
 	}

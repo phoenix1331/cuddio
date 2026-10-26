@@ -22,6 +22,7 @@ First of a planned set of Welsh-named Go tools sharing one visual style for READ
 | `internal/replace/` | Placeholder tokens consistent within a run, overlap resolution; fake values (planned) |
 | `internal/mapstore/` | Local mapping store, `0600` files with TTL (planned) |
 | `internal/clipboard/` | Clipboard access including WSL (planned) |
+| `internal/names/` | Nearest known name within two edits, for "did you mean" hints that never echo anything further away |
 | `internal/config/` | Config schema, defaults, project file discovery, strict YAML decoding, per-file validation, merging, `CustomRules` compilation |
 | `scripts/check.sh` | The quality gate, run locally and in CI |
 | `.github/scripts/` | `check-archives.sh` (release archive allow list), `check-module-size.sh` (module zip budget) |
@@ -53,6 +54,8 @@ First of a planned set of Welsh-named Go tools sharing one visual style for READ
 | `mode: fake` errors until fake values exist | Same reasoning as `--format sql` |
 | `mapping.disabled` can be set by either file and unset by neither | A global "never store mappings" policy cannot be undone by a project file |
 | Strict YAML decoding; type errors rewritten to drop quoted values | Typos fail loudly; yaml's own messages quote the start of the bad value, which could be an allowlisted secret |
+| Errors repeat a name from config only as a near miss (two edits) of a real setting, rule or category; otherwise they give a line number or position. Quoted keys, anchors and non-core tags are dropped | A value typed in the wrong place (a secret as a key, in `enable`, as a rule ID) is never echoed; a shape check alone would pass lowercase hex keys |
+| Security tests in `internal/cli/security_test.go` run every clean path with known values, assert none appear in stdout, stderr or output, and compare the input's SHA-256, mode and mtime before and after | One place proves "never print a secret" and "never touch the input"; `assertNoLeak` is reused by `--check` and `--report` |
 | `go.yaml.in/yaml/v3` | Maintained successor of the archived `gopkg.in/yaml.v3`; v4 is still a release candidate |
 | Rules sorted by category (secret, then pii), then ID | Output never depends on registration order; when two rules match the same value, the secret label wins |
 | Enable/disable: category entries first, ID entries override, disable wins at the same level; unknown names are errors | `disable: [pii]` plus `enable: [email]` reads naturally; a typo never silently leaves a rule on |

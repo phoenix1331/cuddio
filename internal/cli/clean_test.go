@@ -137,12 +137,13 @@ func TestCleanSetupErrors(t *testing.T) {
 		config string
 		want   string
 	}{
-		{"unknown rule in config", testRules, "rules:\n  enable: [nope]\n", `cuddio: rules: unknown rule or category "nope"` + "\n"},
+		{"near miss of a rule in config", testRules, "rules:\n  enable: [emial]\n", `cuddio: rules: unknown rule or category "emial" in enable or disable; did you mean "email"?` + "\n"},
+		{"value in the rule list", testRules, "rules:\n  enable: [tok_secret]\n", "cuddio: rules: unknown rule or category in enable or disable\n"},
 		{"invalid allowlist pattern", testRules, "allowlist:\n  patterns: ['tok_(secret']\n", ": allowlist pattern 1: invalid pattern: missing closing )\n"},
 		{"placeholder format without {n}", testRules, "placeholder:\n  format: '<{label}>'\n", ": placeholder format must contain {label} and {n}\n"},
 		{"invalid custom rule", testRules, "rules:\n  custom:\n    - {id: acme, category: secret, label: ACME, pattern: 'tok_(secret'}\n", ": rule acme: invalid pattern: missing closing )\n"},
 		{"fake mode", testRules, "mode: fake\n", "cuddio: fake mode is not supported yet\n"},
-		{"invalid rule", []detect.Rule{{ID: "Bad"}}, "", `cuddio: rule "Bad": id must be lowercase letters, digits and single hyphens` + "\n"},
+		{"invalid rule", []detect.Rule{{ID: "Bad"}}, "", "cuddio: rule id must be lowercase letters, digits and single hyphens\n"},
 	}
 
 	for _, tt := range tests {

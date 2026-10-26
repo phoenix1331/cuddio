@@ -8,10 +8,14 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
+	"slices"
 	"strings"
 
 	"go.yaml.in/yaml/v3"
+
+	"github.com/phoenix1331/cuddio/internal/names"
 )
 
 // ProjectFile is the name of the per-project config file.
@@ -136,23 +140,68 @@ var (
 	// quotedValue matches the start of a value yaml quotes in its type errors.
 	quotedValue = regexp.MustCompile("`[^`]*`")
 	// unknownField matches yaml's strict-mode message for a key with no struct field.
-	unknownField = regexp.MustCompile(`field (\S+) not found in type \S+`)
+	unknownField = regexp.MustCompile(`field (\S+) not found in type (\S+)`)
+	// tag matches the tag yaml names in a type error, such as !!str.
+	tag = regexp.MustCompile(`cannot unmarshal (!\S*)( a value)?`)
+	// quotedName matches an anchor, key or other name yaml quotes in its errors.
+	quotedName = regexp.MustCompile(` ?('[^']*'|"[^"]*")`)
 )
 
-// describe turns a yaml error into a message that never repeats a value from
+// coreTags are the tags yaml gives plain values; any other tag in a type
+// error was written in the file.
+var coreTags = []string{"!!binary", "!!bool", "!!float", "!!int", "!!map", "!!merge", "!!null", "!!seq", "!!str", "!!timestamp"}
+
+// describe turns a yaml error into a message that never repeats text from
 // the file: type errors quote the start of the offending value, which may be
-// an allowlisted secret.
+// an allowlisted secret, and a key, anchor or tag may be a value written in
+// the wrong place. An unknown key is named only as a near miss of a setting.
 func describe(err error) string {
 	var typeErr *yaml.TypeError
 	if !errors.As(err, &typeErr) {
-		return strings.TrimPrefix(err.Error(), "yaml: ")
+		return quotedName.ReplaceAllString(strings.TrimPrefix(err.Error(), "yaml: "), "")
 	}
 
+	settings := settingNames(reflect.TypeFor[Config](), map[string][]string{})
 	lines := make([]string, len(typeErr.Errors))
 	for i, line := range typeErr.Errors {
 		line = quotedValue.ReplaceAllString(line, "a value")
-		lines[i] = unknownField.ReplaceAllString(line, "unknown setting $1")
+		line = quotedName.ReplaceAllString(line, "")
+		line = tag.ReplaceAllStringFunc(line, func(m string) string {
+			if slices.Contains(coreTags, tag.FindStringSubmatch(m)[1]) {
+				return m
+			}
+			return "cannot unmarshal a value with an unknown tag"
+		})
+		lines[i] = unknownField.ReplaceAllStringFunc(line, func(m string) string {
+			match := unknownField.FindStringSubmatch(m)
+			if near, ok := names.Nearest(match[1], settings[match[2]]); ok {
+				return fmt.Sprintf("unknown setting; did you mean %s?", near)
+			}
+			return "unknown setting"
+		})
 	}
 
 	return strings.Join(lines, "; ")
+}
+
+// settingNames adds the yaml keys of t, and of the structs it contains, to
+// keys under each struct's type name, as yaml names it in errors.
+func settingNames(t reflect.Type, keys map[string][]string) map[string][]string {
+	for field := range t.Fields() {
+		key, _, _ := strings.Cut(field.Tag.Get("yaml"), ",")
+		if key == "" || key == "-" {
+			continue
+		}
+		keys[t.String()] = append(keys[t.String()], key)
+
+		inner := field.Type
+		for inner.Kind() == reflect.Slice || inner.Kind() == reflect.Map {
+			inner = inner.Elem()
+		}
+		if inner.Kind() == reflect.Struct {
+			settingNames(inner, keys)
+		}
+	}
+
+	return keys
 }

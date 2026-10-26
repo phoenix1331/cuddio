@@ -92,6 +92,45 @@ func isNetworkPackage(path string) bool {
 	return !pureNetPackages[path]
 }
 
+// testOnly lists packages and modules that only tests may use: SQL parsers
+// and an SQLite engine for validity checks. They must never reach the binary.
+var testOnly = []string{
+	"github.com/phoenix1331/cuddio/internal/sqltest",
+	"github.com/pingcap/",
+	"github.com/pganalyze/",
+	"github.com/wasilibs/",
+	"github.com/tetratelabs/wazero",
+	"modernc.org/",
+}
+
+func TestBuildExcludesTestOnlyPackages(t *testing.T) {
+	t.Parallel()
+
+	out, err := exec.Command(goTool(t), "list", "-deps", ".").Output()
+	if err != nil {
+		t.Fatalf("go list: %v", err)
+	}
+
+	for _, problem := range testOnlyProblems(string(out)) {
+		t.Error(problem)
+	}
+}
+
+// testOnlyProblems reports every package in a go list -deps listing that
+// belongs to testOnly.
+func testOnlyProblems(list string) []string {
+	var problems []string
+	for _, pkg := range strings.Fields(list) {
+		for _, prefix := range testOnly {
+			if strings.HasPrefix(pkg, prefix) {
+				problems = append(problems, "test-only package in the build: "+pkg)
+			}
+		}
+	}
+
+	return problems
+}
+
 func TestBinaryContainsNoNetworkCode(t *testing.T) {
 	t.Parallel()
 
@@ -146,6 +185,10 @@ func TestNetworkCheckersCatchProblems(t *testing.T) {
 	}
 	if !isNetworkPackage("crypto/tls") {
 		t.Error("crypto/tls should count as a network package")
+	}
+
+	if got := testOnlyProblems("fmt\nmodernc.org/sqlite\ngithub.com/phoenix1331/cuddio/internal/cli\n"); strings.Join(got, ",") != "test-only package in the build: modernc.org/sqlite" {
+		t.Errorf("testOnlyProblems() = %q", got)
 	}
 
 	nm := []byte("  4a1b20 T net.(*Dialer).DialContext\n  4a1c00 T net.ParseIP\n  4a1d00 T net/http.Get\nU\n")

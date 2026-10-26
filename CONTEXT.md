@@ -13,12 +13,13 @@ First of a planned set of Welsh-named Go tools sharing one visual style for READ
 | Path | Role |
 |---|---|
 | `main.go` | `main` package at the root so `go install github.com/phoenix1331/cuddio@latest` works; wiring only, holds the ldflags `version` |
-| `network_test.go` | No-network checks: build imports and linked binary symbols |
+| `network_test.go` | No-network checks (build imports, linked binary symbols) and the test-only package guard |
 | `internal/cli/` | Cobra commands; `Env` carries args, stdin, stdout, stderr, build info and rules so commands run in-process in tests; root command cleans stdin or `FILE` to stdout or `-o` |
 | `internal/detect/` | Rule type, registry with enable/disable selection, Luhn and entropy validators, allowlist (built-in values plus config values and patterns), `Detector` turning rules into `replace.Match` spans |
 | `internal/rules/` | `Builtin()` (`secrets.go`, `pii.go`), `Gitleaks()` (`gitleaks.go` over generated `gitleaks_gen.go`), and `All()`, the set `main` passes in |
 | `tools/gitleaksgen/` | Nested module: turns gitleaks' `config/gitleaks.toml` into `internal/rules/gitleaks_gen.go`; run by `scripts/update-gitleaks-rules.sh`, tested by `scripts/check.sh` |
 | `internal/textscan/` | Streaming line scanner for plain text and logs; buffers PEM blocks, keeps line endings, caps line length; golden fixtures in `testdata/text/`, fuzz corpus in `testdata/fuzz/` |
+| `internal/sqltest/` | Test support only: Laravel-shaped fixture dumps (`testdata/sql/`, embedded), `WriteDump` for large generated dumps, `Check` for MySQL, PostgreSQL and SQLite validity, `OpenSQLite` |
 | `internal/sqlscan/` | Streaming SQL tokeniser, dialects, column tracking (planned) |
 | `internal/replace/` | Placeholder tokens consistent within a run, overlap resolution; fake values (planned) |
 | `internal/mapstore/` | Local mapping store, `0600` files with TTL (planned) |
@@ -96,6 +97,12 @@ First of a planned set of Welsh-named Go tools sharing one visual style for READ
 | Memory test: warm-up, then 3 MiB streamed with at most 1 MiB heap growth | Heap is flat after warm-up (about 200 KiB at 4 and 16 MiB); small enough for `-race` in CI |
 | Placeholder state grows with distinct values | Same value, same token for the whole run needs a map; bounded memory holds for bounded distinct values |
 | Rule fixtures built at test time from a deterministic `fake(n)` helper | No live-format token in the repository for push protection or users' module caches to flag |
+| SQL validity: TiDB parser (MySQL), go-pgquery (PostgreSQL, libpg_query as Wasm), modernc.org/sqlite (import); test-only, in the main module | All pure Go, so tests run on Windows CI with `CGO_ENABLED=0`; detail in `.claude/docs/sql-validity-spike.md` |
+| `internal/sqltest` is a normal package imported only by tests; `TestBuildExcludesTestOnlyPackages` fails if it or its libraries appear in `go list -deps .` | Shared by `sqlscan` and CLI tests; the guard catches a stray import before it bloats the binary |
+| `Check` also compares each row's value count with its table's columns (from `CREATE TABLE`, `INSERT` and `COPY` column lists) | Parsers check syntax only; a dropped or doubled value would otherwise pass |
+| `Check` skips mysql `DELIMITER ;;` blocks and psql meta-commands (`\restrict`, `\unrestrict`); COPY data rows are checked in Go (field count on unescaped tabs, no trailing lone backslash) | None of these are SQL; TiDB cannot parse triggers or routines; blocks hold code, not row data |
+| SQL fixtures use `{{fake N S}}` and `{{hex N S}}` with a seed; a test runs every secret rule over the committed templates | Distinct deterministic tokens per row; nothing committed looks live to push protection |
+| `golang.org/x/text` pinned at v0.41.0 | TiDB's parser pulls in v0.39.0, affected by GO-2026-6629 (not called, but the module scan flags it) |
 | `.sql` input or `--format sql` errors until the SQL scanner exists | Treating a dump as plain text would change behaviour silently once SQL support lands |
 
 ## Dependencies and constraints
@@ -108,6 +115,9 @@ First of a planned set of Welsh-named Go tools sharing one visual style for READ
 | `github.com/inconshreveable/mousetrap` | v1.1.0 (indirect) | Cobra's Windows Explorer launch detection |
 | `go.yaml.in/yaml/v3` | v3.0.5 | Config file decoding (MIT and Apache-2.0) |
 | gitleaks rules (vendored, not a module) | v8.30.1, `config/gitleaks.toml` SHA-256 `e163e53b...a329caf` | Upstream rules as generated Go; MIT notice in `LICENSE` and the generated header; pinned in `scripts/update-gitleaks-rules.sh` |
+| `github.com/pingcap/tidb/pkg/parser` | `v0.0.0-20261010074516-03148cd4adf3`, tests only | MySQL syntax and column-count checks (Apache-2.0); no semver tags |
+| `github.com/wasilibs/go-pgquery` | `v0.0.0-20260915022521-81f99195012b`, tests only | PostgreSQL syntax and column-count checks (MIT); returns `pg_query_go/v6` trees |
+| `modernc.org/sqlite` | v1.60.1, tests only | In-memory SQLite import (BSD-3-Clause) |
 | `github.com/BurntSushi/toml` | v1.5.0, `tools/gitleaksgen` only | Reads gitleaks' TOML in the generator; never in `go list -deps .` |
 
 Tools (not module dependencies): golangci-lint v2.15, govulncheck, GoReleaser v2, actionlint.

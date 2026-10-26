@@ -17,11 +17,17 @@ func main() {
 }
 
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	// Without a working or config directory, cuddio skips that config file
+	workDir, _ := os.Getwd()
+	configDir, _ := os.UserConfigDir()
+
 	return cli.Execute(cli.Env{
-		Version: version,
-		Args:    args,
-		Stdin:   stdin,
-		Stdout:  stdout,
-		Stderr:  stderr,
+		Version:   version,
+		Args:      args,
+		Stdin:     stdin,
+		Stdout:    stdout,
+		Stderr:    stderr,
+		WorkDir:   workDir,
+		ConfigDir: configDir,
 	})
 }

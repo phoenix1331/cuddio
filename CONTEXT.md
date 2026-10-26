@@ -15,7 +15,7 @@ First of a planned set of Welsh-named Go tools sharing one visual style for READ
 | `main.go` | `main` package at the root so `go install github.com/phoenix1331/cuddio@latest` works; wiring only, holds the ldflags `version` |
 | `network_test.go` | No-network checks: build imports and linked binary symbols |
 | `internal/cli/` | Cobra commands; `Env` carries args, stdin, stdout, stderr and build info so commands run in-process in tests |
-| `internal/detect/` | Rule engine, rule definitions, allowlist (planned) |
+| `internal/detect/` | Rule type, registry with enable/disable selection, Luhn and entropy validators; allowlist (planned) |
 | `internal/rules/` | Built-in and vendored gitleaks rules (planned) |
 | `internal/textscan/` | Streaming scanner for plain text and logs (planned) |
 | `internal/sqlscan/` | Streaming SQL tokeniser, dialects, column tracking (planned) |
@@ -51,6 +51,9 @@ First of a planned set of Welsh-named Go tools sharing one visual style for READ
 | `mapping.disabled` can be set by either file and unset by neither | A global "never store mappings" policy cannot be undone by a project file |
 | Strict YAML decoding; type errors rewritten to drop quoted values | Typos fail loudly; yaml's own messages quote the start of the bad value, which could be an allowlisted secret |
 | `go.yaml.in/yaml/v3` | Maintained successor of the archived `gopkg.in/yaml.v3`; v4 is still a release candidate |
+| Rules sorted by category (secret, then pii), then ID | Output never depends on registration order; when two rules match the same value, the secret label wins |
+| Enable/disable: category entries first, ID entries override, disable wins at the same level; unknown names are errors | `disable: [pii]` plus `enable: [email]` reads naturally; a typo never silently leaves a rule on |
+| Rule IDs lowercase kebab case, labels uppercase, IDs never equal a category name | IDs match the gitleaks style; labels fit `<{label}_{n}>`; config names stay unambiguous |
 
 ## Dependencies and constraints
 

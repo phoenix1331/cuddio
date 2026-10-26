@@ -1,0 +1,72 @@
+// Package detect holds cuddio's rule engine: what a rule is, which rules are
+// switched on, and how a match is confirmed.
+package detect
+
+import (
+	"fmt"
+	"regexp"
+	"slices"
+)
+
+// Category groups rules so they can be switched on or off together.
+type Category string
+
+const (
+	// Secret covers credentials: API keys, tokens, passwords and private keys.
+	Secret Category = "secret"
+	// PII covers personally identifiable information: emails, phone numbers,
+	// addresses and similar.
+	PII Category = "pii"
+)
+
+// categories lists every category in the order rules are sorted by.
+// Secrets come first, so a value two rules both match is labelled a secret.
+var categories = []Category{Secret, PII}
+
+// Rule finds one kind of sensitive value.
+type Rule struct {
+	// ID is a stable lowercase name such as "aws-access-key", used in config,
+	// reports and the rules list.
+	ID       string
+	Category Category
+	// Label names the value in placeholders, such as EMAIL in <EMAIL_1>.
+	Label string
+	// Pattern is an RE2 expression; Go's regexp package guarantees linear time
+	// matching, so no input can make a rule hang.
+	Pattern *regexp.Regexp
+	// Validate, when set, must accept a match before it counts.
+	Validate func(match string) bool
+	// Optional rules are off unless enabled by ID or category.
+	Optional bool
+}
+
+// Accepts reports whether a pattern match is a real finding.
+func (r Rule) Accepts(match string) bool {
+	return r.Validate == nil || r.Validate(match)
+}
+
+var (
+	validID    = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
+	validLabel = regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`)
+)
+
+func (r Rule) check() error {
+	if !validID.MatchString(r.ID) {
+		return fmt.Errorf("rule %q: id must be lowercase letters, digits and single hyphens", r.ID)
+	}
+	if categoryRank(r.Category) < 0 {
+		return fmt.Errorf("rule %s: unknown category %q", r.ID, r.Category)
+	}
+	if !validLabel.MatchString(r.Label) {
+		return fmt.Errorf("rule %s: label must be uppercase letters, digits and underscores", r.ID)
+	}
+	if r.Pattern == nil {
+		return fmt.Errorf("rule %s: no pattern", r.ID)
+	}
+
+	return nil
+}
+
+func categoryRank(c Category) int {
+	return slices.Index(categories, c)
+}

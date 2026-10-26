@@ -68,3 +68,16 @@ func TestDetectorFind(t *testing.T) {
 		})
 	}
 }
+
+func TestDetectorKeywords(t *testing.T) {
+	t.Parallel()
+
+	token := Rule{ID: "token", Category: Secret, Label: "TOKEN", Pattern: regexp.MustCompile(`(?i)tok_[a-z]+`), Keywords: []string{"tok_"}}
+	det := NewDetector([]Rule{token}, nil)
+
+	for in, want := range map[string]int{"tok_abc": 1, "TOK_ABC": 1, "no keyword here": 0} {
+		if got := len(det.Find(in)); got != want {
+			t.Errorf("Find(%q) = %d matches, want %d", in, got, want)
+		}
+	}
+}

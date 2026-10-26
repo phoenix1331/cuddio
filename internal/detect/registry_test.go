@@ -126,6 +126,10 @@ func TestNewRegistryRejectsBadRules(t *testing.T) {
 	badLabel.Label = "email"
 	badCategory := good
 	badCategory.Category = "personal"
+	upperKeyword := good
+	upperKeyword.Keywords = []string{"Mail"}
+	emptyKeyword := good
+	emptyKeyword.Keywords = []string{""}
 
 	tests := []struct {
 		name  string
@@ -139,6 +143,8 @@ func TestNewRegistryRejectsBadRules(t *testing.T) {
 		{"unknown category", []Rule{badCategory}, `unknown category "personal"`},
 		{"lowercase label", []Rule{badLabel}, "label must be"},
 		{"no pattern", []Rule{noPattern}, "no pattern"},
+		{"uppercase keyword", []Rule{upperKeyword}, "keywords must be non-empty and lowercase"},
+		{"empty keyword", []Rule{emptyKeyword}, "keywords must be non-empty and lowercase"},
 		{"id is a category", []Rule{rule("pii", PII, false)}, "id is a category name"},
 		{"duplicate id", []Rule{good, rule("email", Secret, false)}, "defined more than once"},
 	}

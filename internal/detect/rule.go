@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
+	"strings"
 )
 
 // Category groups rules so they can be switched on or off together.
@@ -36,6 +37,11 @@ type Rule struct {
 	// "value", only the first that took part in a match is redacted, so
 	// "PASSWORD=" stays readable around the hidden value.
 	Pattern *regexp.Regexp
+	// Keywords, when set, are lowercase literals of which at least one must
+	// appear in the text (compared case-insensitively) before the pattern
+	// runs. They are a cheap filter: most lines hold none, so most rules
+	// never reach the regexp engine.
+	Keywords []string
 	// Validate, when set, must accept a match (the value group when the
 	// pattern has one) before it counts.
 	Validate func(match string) bool
@@ -65,6 +71,11 @@ func (r Rule) check() error {
 	}
 	if r.Pattern == nil {
 		return fmt.Errorf("rule %s: no pattern", r.ID)
+	}
+	for _, k := range r.Keywords {
+		if k == "" || k != strings.ToLower(k) {
+			return fmt.Errorf("rule %s: keywords must be non-empty and lowercase", r.ID)
+		}
 	}
 
 	return nil

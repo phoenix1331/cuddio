@@ -1,0 +1,11 @@
+[2026-10-26 09:12:44] production.ERROR: SQLSTATE[HY000] [1045] Access denied for user 'forge'@'203.0.113.24' (using password: YES) (Connection: mysql, SQL: select * from `users` where `email` = alice@shop.test limit 1) {"userId":42,"exception":"[object] (Illuminate\\Database\\QueryException(code: 1045): SQLSTATE[HY000] [1045] at /home/forge/shop.example.com/vendor/laravel/framework/src/Illuminate/Database/Connection.php:825)
+[stacktrace]
+#0 /home/forge/shop.example.com/vendor/laravel/framework/src/Illuminate/Database/Connection.php(779): Illuminate\\Database\\Connection->runQueryCallback('select * from `...', Array, Object(Closure))
+#1 {main}
+"}
+[2026-10-26 09:13:02] production.INFO: Outgoing request {"method":"POST","url":"https://api.stripe.com/v1/charges","headers":{"Authorization":"Bearer sk_live_{{fake 24}}","Idempotency-Key":"3f1c2a9e-8b7d-4e6f-9a0b-1c2d3e4f5a6b"}}
+[2026-10-26 09:13:05] local.DEBUG: Login attempt {"email":"bob@example.invalid","password":"correct horse battery staple","remember":true,"ip":"198.51.100.77","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15"}
+[2026-10-26 09:14:10] production.WARNING: Webhook signature mismatch {"payload":{"customer":{"name":"Alice Example","email":"alice@shop.test","phone":"+44 7700 900123"}},"secret":"whsec_{{fake 32}}"}
+[2026-10-26 09:15:00] production.INFO: Password reset link sent {"url":"https://shop.example.com/reset-password?email=alice%40shop.test&signature={{fake 64}}"}
+[2026-10-26 09:16:12] production.ERROR: Payment failed for card 4111 1111 1111 1111 (order 100045, 1729936502123) {"github":"ghp_{{fake 36}}","jwt":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0MiIsIm5hbWUiOiJBbGljZSJ9.{{fake 43}}"}
+[2026-10-26 09:17:30] testing.INFO: Seeded test@example.com from 127.0.0.1 with key AKIAIOSFODNN7EXAMPLE

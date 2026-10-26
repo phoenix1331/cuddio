@@ -14,16 +14,22 @@ import (
 // "/", so versions in user agents ("Chrome/130.0.0.0") are skipped while
 // URLs ("http://203.0.113.9/") are not. IPv6 candidates must contain a
 // digit, so PHP calls such as "Feed::add" are not addresses.
-const ipPattern = `(?:^|[^\w./:]|//)(?P<value>(?:[0-9]{1,3}\.){3}[0-9]{1,3}|(?i:[0-9a-f]{0,4}:){2,7}(?i:[0-9a-f]{0,4}))(?:$|[^\w.:])`
+//
+// Nothing after the address is consumed (IPv4 ends at \b; netip rejects a
+// cut-off IPv6 address), so the separator after one address can still be the
+// leading context of the next: "203.0.113.9 203.0.113.10" finds both.
+const ipPattern = `(?:^|[^\w./:]|//)(?P<value>(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b|(?i:[0-9a-f]{0,4}:){2,7}(?i:[0-9a-f]{0,4}))`
 
 func pii() []detect.Rule {
 	return inCategory(detect.PII, []detect.Rule{
 		{
 			// An address may not follow ":" (except in mailto:), so the
-			// password and host in user:password@host are not an email
+			// password and host in user:password@host are not an email.
+			// "%40" is "@" URL-encoded, as in reset links (?email=a%40b.com)
 			ID:       "email",
 			Label:    "EMAIL",
-			Pattern:  regexp.MustCompile(`(?:^|[^\w.%+:-]|(?i:mailto:))(?P<value>[A-Za-z0-9._%+-]+@(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63})\b`),
+			Pattern:  regexp.MustCompile(`(?:^|[^\w.%+:-]|(?i:mailto:))(?P<value>[A-Za-z0-9._%+-]+(?:@|%40)(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63})\b`),
+			Keywords: []string{"@", "%40"},
 			Validate: emailAddress,
 		},
 		{
@@ -39,6 +45,7 @@ func pii() []detect.Rule {
 			ID:       "e164-phone",
 			Label:    "PHONE",
 			Pattern:  regexp.MustCompile(`(?:^|[^\w+])(?P<value>\+[1-9](?:[ -]?[0-9]){6,14})\b`),
+			Keywords: []string{"+"},
 			Validate: digitCount(7, 15),
 		},
 		{
@@ -81,6 +88,7 @@ func pii() []detect.Rule {
 			ID:       "home-directory",
 			Label:    "USER",
 			Pattern:  regexp.MustCompile(`(?:/(?:home|Users)/(?P<value>[^/\s"':]+)|(?i:\b[A-Z]:(?:\\|/)+Users(?:\\|/)+)(?P<value>[^\\/"':*?<>|\r\n]*[^\\/"':*?<>|\s]))`),
+			Keywords: []string{"/home/", "users"},
 			Validate: realUser,
 		},
 	})
@@ -96,7 +104,7 @@ var fileExtensions = map[string]bool{
 // as git@github.com, which use the git user rather than a person's address.
 func emailAddress(email string) bool {
 	tld := strings.ToLower(email[strings.LastIndexByte(email, '.')+1:])
-	return !fileExtensions[tld] && !strings.HasPrefix(email, "git@")
+	return !fileExtensions[tld] && !strings.HasPrefix(email, "git@") && !strings.HasPrefix(email, "git%40")
 }
 
 func digits(s string) string {

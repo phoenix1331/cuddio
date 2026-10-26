@@ -2,6 +2,7 @@ package detect
 
 import (
 	"slices"
+	"strings"
 
 	"github.com/phoenix1331/cuddio/internal/replace"
 )
@@ -36,7 +37,16 @@ const valueGroup = "value"
 // overlapping matches.
 func (d *Detector) Find(s string) []replace.Match {
 	var matches []replace.Match
+	lower := ""
 	for priority, rule := range d.rules {
+		if len(rule.Keywords) > 0 {
+			if lower == "" {
+				lower = strings.ToLower(s)
+			}
+			if !containsAny(lower, rule.Keywords) {
+				continue
+			}
+		}
 		for _, loc := range rule.Pattern.FindAllStringSubmatchIndex(s, -1) {
 			start, end := span(loc, d.groups[priority])
 			value := s[start:end]
@@ -60,4 +70,14 @@ func span(loc, groups []int) (start, end int) {
 	}
 
 	return loc[0], loc[1]
+}
+
+func containsAny(s string, keywords []string) bool {
+	for _, k := range keywords {
+		if strings.Contains(s, k) {
+			return true
+		}
+	}
+
+	return false
 }

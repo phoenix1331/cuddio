@@ -152,6 +152,7 @@ var secretCases = map[string][]ruleCase{
 		{"token", "GET /reset?token=" + fake(20) + "&lang=en", "GET /reset?token=<TOKEN_1>&lang=en"},
 		{"signed url", "/file.pdf?expires=1&signature=" + fake(30), "/file.pdf?expires=1&signature=<TOKEN_1>"},
 		{"api key", "?api_key=abc123 HTTP/1.1", "?api_key=<TOKEN_1> HTTP/1.1"},
+		{"pdo dsn", "pgsql:host=db;dbname=shop;password=hunter2", "pgsql:host=db;dbname=shop;password=<TOKEN_1>"},
 		{"harmless param", "/search?q=token&page=2", ""},
 		{"name only ends in token", "/search?mytoken=abc", ""},
 	},

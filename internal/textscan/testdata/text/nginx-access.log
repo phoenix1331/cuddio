@@ -1,0 +1,6 @@
+203.0.113.24 - - [26/Oct/2026:09:12:44 +0000] "GET /api/orders?page=2&access_token={{fake 32}} HTTP/2.0" 200 1532 "https://shop.example.com/orders" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
+2001:db8:85a3::8a2e:370:7334 - - [26/Oct/2026:09:12:45 +0000] "POST /login HTTP/1.1" 302 0 "-" "curl/8.5.0"
+10.0.0.5 - - [26/Oct/2026:09:12:46 +0000] "GET /health HTTP/1.1" 200 2 "-" "kube-probe/1.31"
+198.51.100.77 - alice [26/Oct/2026:09:12:47 +0000] "GET /download/invoice.pdf?expires=1793000000&signature={{fake 64}} HTTP/1.1" 200 48211 "-" "Mozilla/5.0"
+127.0.0.1 - - [26/Oct/2026:09:12:48 +0000] "GET /reset?token={{fake 40}}&email=bob%40example.invalid HTTP/1.1" 200 812 "-" "Mozilla/5.0"
+203.0.113.24 - - [26/Oct/2026:09:12:49 +0000] "GET /favicon.ico HTTP/2.0" 404 0 "-" "Mozilla/5.0"

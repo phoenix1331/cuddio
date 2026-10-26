@@ -1,0 +1,14 @@
+PDOException: SQLSTATE[08006] [7] connection to server at "db.internal" (10.0.0.12), port 5432 failed: FATAL:  password authentication failed for user "shop"
+DSN: pgsql:host=db.internal;port=5432;dbname=shop;user=shop;password={{fake 16}}
+ in /home/darren/code/shop/vendor/laravel/framework/src/Illuminate/Database/Connectors/Connector.php:65
+Stack trace:
+#0 /home/darren/code/shop/vendor/laravel/framework/src/Illuminate/Database/Connectors/Connector.php(65): PDO->__construct('pgsql:host=db.i...', 'shop', Object(SensitiveParameterValue), Array)
+#1 /Users/alice/Sites/shop/app/Console/Commands/Sync.php(41): App\Services\Sync->run()
+#2 C:\Users\Jane Smith\Herd\shop\artisan(13): Illuminate\Foundation\Console\Kernel->handle()
+#3 {main}
+Previous: GuzzleHttp\Exception\ClientException: Client error: `GET https://deploy:{{fake 20}}@git.example.org/api/v4/projects` resulted in a `401 Unauthorized` response
+Request headers:
+Cookie: laravel_session={{fake 40}}; XSRF-TOKEN={{fake 40}}
+Deploy key:
+{{private-key}}
+End of report

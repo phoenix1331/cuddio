@@ -17,7 +17,7 @@ First of a planned set of Welsh-named Go tools sharing one visual style for READ
 | `internal/cli/` | Cobra commands; `Env` carries args, stdin, stdout, stderr, build info and rules so commands run in-process in tests; root command cleans stdin or `FILE` to stdout or `-o` |
 | `internal/detect/` | Rule type, registry with enable/disable selection, Luhn and entropy validators, allowlist (built-in values plus config values and patterns), `Detector` turning rules into `replace.Match` spans |
 | `internal/rules/` | `Builtin()` rule set passed in by `main`: `secrets.go`, `pii.go`; vendored gitleaks rules (planned) |
-| `internal/textscan/` | Streaming line scanner for plain text and logs; buffers PEM blocks, keeps line endings, caps line length |
+| `internal/textscan/` | Streaming line scanner for plain text and logs; buffers PEM blocks, keeps line endings, caps line length; golden fixtures in `testdata/text/`, fuzz corpus in `testdata/fuzz/` |
 | `internal/sqlscan/` | Streaming SQL tokeniser, dialects, column tracking (planned) |
 | `internal/replace/` | Placeholder tokens consistent within a run, overlap resolution; fake values (planned) |
 | `internal/mapstore/` | Local mapping store, `0600` files with TTL (planned) |
@@ -79,6 +79,12 @@ First of a planned set of Welsh-named Go tools sharing one visual style for READ
 | Emails never follow `:` (except `mailto:`); `git@` remotes and file extension TLDs (`logo@2x.png`) rejected | `user:password@host` stays a password and a host, not an email |
 | Cards need a Visa, Mastercard, Amex or Discover prefix plus Luhn | Luhn alone passes one in ten random numbers, including millisecond timestamps |
 | `home-directory` hides only the username; Windows names may contain spaces; `Shared`, `Public`, `Default` skipped | Paths stay readable; `C:\Users\Jane Smith\` does not leak a surname |
+| Rules carry lowercase `Keywords`; a rule's regexp runs only when one appears in the chunk (lowercased once) | Prefilter like gitleaks' keywords; 2.4x faster on logs; each keyword must be a necessary condition of the pattern, which the "fires on its own" test checks against every positive case |
+| IP pattern consumes no trailing context (IPv4 ends at `\b`) | Found by fuzzing: a consumed trailing separator hid the next address in `a.b.c.d e.f.g.h`. Cost: `1.2.3.4.5` becomes `<IP_1>.5`, an accepted over-redaction since RE2 has no lookahead |
+| Golden inputs are templates (`{{fake N}}`, `{{private-key}}`) expanded at test time; CRLF variants generated from LF files | No live-format token committed; outputs contain only placeholders; one fixture per format |
+| Fuzz property: identity clean round-trips; a rule match in cleaned output fails unless it touches a placeholder | Strict idempotence is too strong: a token changes its neighbours' context (`0::2` becomes `<IP_1>::2`) without anything surviving |
+| Memory test: warm-up, then 3 MiB streamed with at most 1 MiB heap growth | Heap is flat after warm-up (about 200 KiB at 4 and 16 MiB); small enough for `-race` in CI |
+| Placeholder state grows with distinct values | Same value, same token for the whole run needs a map; bounded memory holds for bounded distinct values |
 | Rule fixtures built at test time from a deterministic `fake(n)` helper | No live-format token in the repository for push protection or users' module caches to flag |
 | `.sql` input or `--format sql` errors until the SQL scanner exists | Treating a dump as plain text would change behaviour silently once SQL support lands |
 

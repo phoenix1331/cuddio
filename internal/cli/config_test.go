@@ -46,8 +46,8 @@ func TestConfigSources(t *testing.T) {
 	configDir := filepath.Join(root, "config")
 	repo := filepath.Join(root, "repo")
 	explicit := filepath.Join(root, "ci.yaml")
-	writeConfig(t, config.GlobalFile(configDir), "mapping:\n  ttl: 10m\n")
-	writeConfig(t, filepath.Join(repo, config.ProjectFile), "mode: fake\n")
+	writeConfig(t, config.GlobalFile(configDir), "mapping:\n  ttl: 10m\nplaceholder:\n  format: '[{label}#{n}]'\n")
+	writeConfig(t, filepath.Join(repo, config.ProjectFile), "placeholder:\n  format: '<<{label}{n}>>'\n")
 	writeConfig(t, explicit, "placeholder:\n  format: '[{label}:{n}]'\n")
 
 	tests := []struct {
@@ -58,7 +58,7 @@ func TestConfigSources(t *testing.T) {
 		wantFormat string
 	}{
 		{"no files", Env{}, "placeholder", time.Hour, "<{label}_{n}>"},
-		{"global and project", Env{WorkDir: repo, ConfigDir: configDir}, "fake", 10 * time.Minute, "<{label}_{n}>"},
+		{"global and project", Env{WorkDir: repo, ConfigDir: configDir}, "placeholder", 10 * time.Minute, "<<{label}{n}>>"},
 		{"--config replaces the project file", Env{WorkDir: repo, ConfigDir: configDir, Args: []string{"--config", explicit}}, "placeholder", 10 * time.Minute, "[{label}:{n}]"},
 	}
 

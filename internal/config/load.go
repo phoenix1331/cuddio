@@ -125,6 +125,9 @@ func decode(path string, data []byte) (Config, error) {
 	if err != nil {
 		return Config{}, fmt.Errorf("config %s: %s", path, describe(err))
 	}
+	if err := validate(cfg); err != nil {
+		return Config{}, fmt.Errorf("config %s: %w", path, err)
+	}
 
 	return cfg, nil
 }

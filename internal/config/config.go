@@ -7,6 +7,12 @@ import (
 	"time"
 )
 
+// Output modes.
+const (
+	ModePlaceholder = "placeholder"
+	ModeFake        = "fake"
+)
+
 // Config is the merged result of the default, global and project settings.
 type Config struct {
 	// Mode is "placeholder" or "fake".
@@ -61,14 +67,14 @@ type Mapping struct {
 // Default returns the settings used when no file sets them.
 func Default() Config {
 	return Config{
-		Mode:        "placeholder",
+		Mode:        ModePlaceholder,
 		Placeholder: Placeholder{Format: "<{label}_{n}>"},
 		Mapping:     Mapping{TTL: time.Hour},
 	}
 }
 
 // merge layers over on top of base: scalars set in over win, lists are
-// combined in order, custom rules with the same ID are replaced, and SQL
+// combined in order (rule toggles in over take precedence), custom rules with the same ID are replaced, and SQL
 // table columns are combined per table.
 func merge(base, over Config) Config {
 	out := base
@@ -84,8 +90,10 @@ func merge(base, over Config) Config {
 	}
 	out.Mapping.Disabled = base.Mapping.Disabled || over.Mapping.Disabled
 
-	out.Rules.Enable = slices.Concat(base.Rules.Enable, over.Rules.Enable)
-	out.Rules.Disable = slices.Concat(base.Rules.Disable, over.Rules.Disable)
+	// A name the later file enables or disables drops out of the other list,
+	// so a project can switch back on what the global file switched off
+	out.Rules.Enable = slices.Concat(without(base.Rules.Enable, over.Rules.Disable), over.Rules.Enable)
+	out.Rules.Disable = slices.Concat(without(base.Rules.Disable, over.Rules.Enable), over.Rules.Disable)
 	out.Rules.Custom = mergeCustom(base.Rules.Custom, over.Rules.Custom)
 	out.Allowlist.Values = slices.Concat(base.Allowlist.Values, over.Allowlist.Values)
 	out.Allowlist.Patterns = slices.Concat(base.Allowlist.Patterns, over.Allowlist.Patterns)
@@ -124,4 +132,9 @@ func mergeTables(base, over map[string][]string) map[string][]string {
 	}
 
 	return out
+}
+
+// without returns names minus any in drop.
+func without(names, drop []string) []string {
+	return slices.DeleteFunc(slices.Clone(names), func(n string) bool { return slices.Contains(drop, n) })
 }

@@ -78,3 +78,18 @@ func TestMergeKeepsBaseScalarsWhenUnset(t *testing.T) {
 		t.Errorf("merge(Default(), empty) = %+v, want %+v", got, Default())
 	}
 }
+
+func TestMergeRuleTogglesFavourTheLaterFile(t *testing.T) {
+	t.Parallel()
+
+	base := Config{Rules: Rules{Enable: []string{"uk-postcode", "jwt"}, Disable: []string{"email", "pii"}}}
+	over := Config{Rules: Rules{Enable: []string{"email"}, Disable: []string{"uk-postcode"}}}
+
+	got := merge(base, over).Rules
+	if !reflect.DeepEqual(got.Enable, []string{"jwt", "email"}) || !reflect.DeepEqual(got.Disable, []string{"pii", "uk-postcode"}) {
+		t.Errorf("merge() toggles = enable %v disable %v, want [jwt email] and [pii uk-postcode]", got.Enable, got.Disable)
+	}
+	if !reflect.DeepEqual(base.Rules.Disable, []string{"email", "pii"}) {
+		t.Errorf("merge() changed its input: %v", base.Rules.Disable)
+	}
+}

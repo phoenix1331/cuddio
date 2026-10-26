@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/phoenix1331/cuddio/internal/config"
 	"github.com/phoenix1331/cuddio/internal/detect"
 	"github.com/phoenix1331/cuddio/internal/replace"
 	"github.com/phoenix1331/cuddio/internal/textscan"
@@ -40,6 +41,9 @@ func (a *app) clean(args []string, flags cleanFlags) error {
 	if format == formatSQL {
 		return errors.New("sql format is not supported yet")
 	}
+	if a.config.Mode == config.ModeFake {
+		return errors.New("fake mode is not supported yet")
+	}
 
 	redact, err := a.redactor()
 	if err != nil {
@@ -63,7 +67,11 @@ func (a *app) clean(args []string, flags cleanFlags) error {
 
 // redactor builds the run's redaction function from the rules and config.
 func (a *app) redactor() (func(string) string, error) {
-	registry, err := detect.NewRegistry(a.env.Rules)
+	custom, err := config.CustomRules(a.config.Rules.Custom)
+	if err != nil {
+		return nil, err
+	}
+	registry, err := detect.NewRegistry(detect.WithCustom(a.env.Rules, custom))
 	if err != nil {
 		return nil, err
 	}

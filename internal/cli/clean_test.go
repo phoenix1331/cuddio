@@ -138,8 +138,10 @@ func TestCleanSetupErrors(t *testing.T) {
 		want   string
 	}{
 		{"unknown rule in config", testRules, "rules:\n  enable: [nope]\n", `cuddio: rules: unknown rule or category "nope"` + "\n"},
-		{"invalid allowlist pattern", testRules, "allowlist:\n  patterns: ['tok_(secret']\n", "cuddio: allowlist pattern 1: invalid pattern: missing closing )\n"},
-		{"placeholder format without {n}", testRules, "placeholder:\n  format: '<{label}>'\n", "cuddio: placeholder format must contain {label} and {n}\n"},
+		{"invalid allowlist pattern", testRules, "allowlist:\n  patterns: ['tok_(secret']\n", ": allowlist pattern 1: invalid pattern: missing closing )\n"},
+		{"placeholder format without {n}", testRules, "placeholder:\n  format: '<{label}>'\n", ": placeholder format must contain {label} and {n}\n"},
+		{"invalid custom rule", testRules, "rules:\n  custom:\n    - {id: acme, category: secret, label: ACME, pattern: 'tok_(secret'}\n", ": rule acme: invalid pattern: missing closing )\n"},
+		{"fake mode", testRules, "mode: fake\n", "cuddio: fake mode is not supported yet\n"},
 		{"invalid rule", []detect.Rule{{ID: "Bad"}}, "", `cuddio: rule "Bad": id must be lowercase letters, digits and single hyphens` + "\n"},
 	}
 
@@ -152,8 +154,11 @@ func TestCleanSetupErrors(t *testing.T) {
 
 			got := execute(t, Env{Rules: tt.rules, WorkDir: dir, Stdin: strings.NewReader("tok_secret\n")})
 
-			if got.code != exitError || got.stderr != tt.want || got.stdout != "" {
-				t.Errorf("clean = %d %q %q, want %d, no stdout, stderr %q", got.code, got.stdout, got.stderr, exitError, tt.want)
+			if got.code != exitError || !strings.HasPrefix(got.stderr, "cuddio: ") || !strings.HasSuffix(got.stderr, tt.want) || got.stdout != "" {
+				t.Errorf("clean = %d %q %q, want %d, no stdout, stderr ending %q", got.code, got.stdout, got.stderr, exitError, tt.want)
+			}
+			if strings.Contains(got.stderr, "tok_") {
+				t.Errorf("stderr repeats a value from the config: %q", got.stderr)
 			}
 		})
 	}
@@ -391,3 +396,56 @@ func TestIsTerminal(t *testing.T) {
 type fileStdin struct{ terminal }
 
 func (fileStdin) Stat() (fs.FileInfo, error) { return fileInfo{}, nil }
+
+func TestCleanCustomRulesAndPrecedence(t *testing.T) {
+	t.Parallel()
+
+	const in = "alice@shop.test acme_1234 tok_abc\n"
+	const acme = "rules:\n  custom:\n    - {id: acme, category: secret, label: ACME, pattern: 'acme_(?P<value>[0-9]+)'}\n"
+
+	tests := []struct {
+		name    string
+		global  string
+		project string
+		want    string
+	}{
+		{"custom rule from the project", "", acme, "<EMAIL_1> acme_<ACME_1> <TOKEN_1>\n"},
+		{"custom rule from the global file", acme, "", "<EMAIL_1> acme_<ACME_1> <TOKEN_1>\n"},
+		{
+			"project custom rule replaces the global one by ID",
+			acme,
+			"rules:\n  custom:\n    - {id: acme, category: secret, label: ACME_ID, pattern: 'acme_[0-9]+'}\n",
+			"<EMAIL_1> <ACME_ID_1> <TOKEN_1>\n",
+		},
+		{
+			"custom rule replaces a built-in by ID",
+			"",
+			"rules:\n  custom:\n    - {id: email, category: pii, label: MAIL, pattern: '@shop\\.test'}\n",
+			"alice<MAIL_1> acme_1234 <TOKEN_1>\n",
+		},
+		{"project disables a global custom rule", acme, "rules:\n  disable: [acme]\n", "<EMAIL_1> acme_1234 <TOKEN_1>\n"},
+		{"category toggle covers custom rules", acme, "rules:\n  disable: [secret]\n", "<EMAIL_1> acme_1234 tok_abc\n"},
+		{"project enables what the global file disabled", "rules:\n  disable: [email]\n", "rules:\n  enable: [email]\n", "<EMAIL_1> acme_1234 <TOKEN_1>\n"},
+		{"project disables what the global file enabled", "rules:\n  enable: [email]\n", "rules:\n  disable: [email]\n", "alice@shop.test acme_1234 <TOKEN_1>\n"},
+		{"project placeholder format wins", "placeholder:\n  format: '[{label}#{n}]'\n", "placeholder:\n  format: '({label}-{n})'\n", "(EMAIL-1) acme_1234 (TOKEN-1)\n"},
+		{"global allowlist still applies", "allowlist:\n  values: [tok_abc]\n", "allowlist:\n  values: [alice@shop.test]\n", "alice@shop.test acme_1234 tok_abc\n"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			root := t.TempDir()
+			configDir := filepath.Join(root, "config")
+			repo := filepath.Join(root, "repo")
+			writeConfig(t, config.GlobalFile(configDir), tt.global)
+			writeConfig(t, filepath.Join(repo, config.ProjectFile), tt.project)
+
+			got := execute(t, Env{Rules: testRules, WorkDir: repo, ConfigDir: configDir, Stdin: strings.NewReader(in)})
+
+			if got.code != exitOK || got.stdout != tt.want {
+				t.Errorf("clean = %d %q (stderr %q), want %d %q", got.code, got.stdout, got.stderr, exitOK, tt.want)
+			}
+		})
+	}
+}

@@ -29,7 +29,7 @@ func TestLoadLayers(t *testing.T) {
 	repo := filepath.Join(root, "repo")
 	writeFile(t, GlobalFile(globalDir), "mode: fake\nmapping:\n  ttl: 30m\nallowlist:\n  values: [test@example.com]\n")
 	writeFile(t, filepath.Join(repo, ProjectFile), "mode: placeholder\nallowlist:\n  values: [ops@example.com]\n")
-	writeFile(t, filepath.Join(root, "explicit.yaml"), "placeholder:\n  format: '[{label}]'\n")
+	writeFile(t, filepath.Join(root, "explicit.yaml"), "placeholder:\n  format: '[{label}:{n}]'\n")
 
 	tests := []struct {
 		name          string
@@ -42,7 +42,7 @@ func TestLoadLayers(t *testing.T) {
 		{"defaults only", Sources{}, "placeholder", time.Hour, "<{label}_{n}>", ""},
 		{"global only", Sources{GlobalDir: globalDir}, "fake", 30 * time.Minute, "<{label}_{n}>", "test@example.com"},
 		{"project over global", Sources{GlobalDir: globalDir, WorkDir: repo}, "placeholder", 30 * time.Minute, "<{label}_{n}>", "test@example.com,ops@example.com"},
-		{"explicit replaces project", Sources{GlobalDir: globalDir, WorkDir: repo, Explicit: filepath.Join(root, "explicit.yaml")}, "fake", 30 * time.Minute, "[{label}]", "test@example.com"},
+		{"explicit replaces project", Sources{GlobalDir: globalDir, WorkDir: repo, Explicit: filepath.Join(root, "explicit.yaml")}, "fake", 30 * time.Minute, "[{label}:{n}]", "test@example.com"},
 		{"missing global is skipped", Sources{GlobalDir: filepath.Join(root, "nowhere"), WorkDir: repo}, "placeholder", time.Hour, "<{label}_{n}>", "ops@example.com"},
 	}
 
@@ -127,6 +127,14 @@ func TestLoadErrors(t *testing.T) {
 		{"wrong type", "mapping:\n  ttl: " + secret + "\n", "line 2: cannot unmarshal !!str a value into time.Duration"},
 		{"list where a mapping belongs", "allowlist: [" + secret + "]\n", "line 1: cannot unmarshal !!seq into config.Allowlist"},
 		{"invalid YAML", "mode: fake\n  bad: " + secret + "\n", "line 2: mapping values are not allowed in this context"},
+		{"unknown mode", "mode: " + secret + "\n", "mode must be placeholder or fake"},
+		{"placeholder format without {n}", "placeholder:\n  format: '" + secret + "{label}'\n", "placeholder format must contain {label} and {n}"},
+		{"negative ttl", "mapping:\n  ttl: -5m\n", "mapping ttl must not be negative"},
+		{"invalid allowlist pattern", "allowlist:\n  patterns: ['" + secret + "(']\n", "allowlist pattern 1: invalid pattern: missing closing )"},
+		{"invalid custom regex", "rules:\n  custom:\n    - {id: acme, category: secret, label: ACME, pattern: '" + secret + "('}\n", "rule acme: invalid pattern: missing closing )"},
+		{"custom rule not RE2", "rules:\n  custom:\n    - {id: acme, category: secret, label: ACME, pattern: '(?<=x)" + secret + "'}\n", "rule acme: invalid pattern: invalid named capture"},
+		{"custom rule without a label", "rules:\n  custom:\n    - {id: acme, category: secret, pattern: '" + secret + "'}\n", "rule acme: label must be"},
+		{"custom rule defined twice", "rules:\n  custom:\n    - {id: acme, category: secret, label: A, pattern: x}\n    - {id: acme, category: pii, label: B, pattern: '" + secret + "'}\n", "rule acme: defined more than once"},
 	}
 
 	for _, tt := range tests {

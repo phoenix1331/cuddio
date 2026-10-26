@@ -22,7 +22,7 @@ First of a planned set of Welsh-named Go tools sharing one visual style for READ
 | `internal/replace/` | Placeholder tokens consistent within a run, overlap resolution; fake values (planned) |
 | `internal/mapstore/` | Local mapping store, `0600` files with TTL (planned) |
 | `internal/clipboard/` | Clipboard access including WSL (planned) |
-| `internal/config/` | Config schema, defaults, project file discovery, strict YAML decoding, merging |
+| `internal/config/` | Config schema, defaults, project file discovery, strict YAML decoding, per-file validation, merging, `CustomRules` compilation |
 | `scripts/check.sh` | The quality gate, run locally and in CI |
 | `.github/scripts/` | `check-archives.sh` (release archive allow list), `check-module-size.sh` (module zip budget) |
 | `.githooks/` | `commit-msg` and `pre-commit`, enabled with `git config core.hooksPath .githooks` |
@@ -47,7 +47,10 @@ First of a planned set of Welsh-named Go tools sharing one visual style for READ
 | MIT licence | Compatible with vendoring MIT-licensed gitleaks rules |
 | `SECURITY.md` points to GitHub private advisories | No personal email address published |
 | Config: defaults, then global `cuddio/config.yaml` in `os.UserConfigDir()`, then the nearest `.cuddio.yaml` (walking up, stopping at `.git`), or `--config` instead of the project file | Brief's project-over-global rule; stopping at `.git` keeps a parent directory's file from leaking into another repository |
-| Merge: scalars from the later file win, lists combine, custom rules replace by `id`, SQL table columns combine per table | Global allowlists and rules keep applying inside projects; a project can still change modes and formats |
+| Merge: scalars from the later file win, lists combine, custom rules replace by `id`, SQL table columns combine per table; a name the later file enables or disables leaves the earlier file's opposite list | Global allowlists and rules keep applying inside projects; a project can still change modes and formats and switch rules back on |
+| Each file validated as it loads (mode, placeholder format, TTL, allowlist patterns, custom rules); rule names in `enable`/`disable` checked at selection | Errors name the file at fault; a toggle may name a custom rule from the other file |
+| Custom rules need `id`, `category`, `label`, `pattern`; on by default; an `id` matching a built-in replaces it | Lets users retune a noisy built-in without a new mechanism; `disable` still switches custom rules off |
+| `mode: fake` errors until fake values exist | Same reasoning as `--format sql` |
 | `mapping.disabled` can be set by either file and unset by neither | A global "never store mappings" policy cannot be undone by a project file |
 | Strict YAML decoding; type errors rewritten to drop quoted values | Typos fail loudly; yaml's own messages quote the start of the bad value, which could be an allowlisted secret |
 | `go.yaml.in/yaml/v3` | Maintained successor of the archived `gopkg.in/yaml.v3`; v4 is still a release candidate |

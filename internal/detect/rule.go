@@ -25,6 +25,36 @@ const (
 // Secrets come first, so a value two rules both match is labelled a secret.
 var categories = []Category{Secret, PII}
 
+// Source says where a rule comes from.
+type Source string
+
+const (
+	// SourceBuiltin rules are written for cuddio. A rule with no source is
+	// built in.
+	SourceBuiltin Source = "built-in"
+	// SourceCustom rules come from config.
+	SourceCustom Source = "custom"
+	// SourceGitleaks rules are vendored from gitleaks' default config.
+	SourceGitleaks Source = "gitleaks"
+)
+
+// sourceRank orders rules within a category: vendored rules sort after
+// built-in and custom ones, so they lose ties and a value two rules both
+// match keeps cuddio's own label.
+func sourceRank(s Source) int {
+	if s == SourceGitleaks {
+		return 1
+	}
+
+	return 0
+}
+
+// isGroupName reports whether name switches a group of rules on or off: a
+// category, or a vendored rule set.
+func isGroupName(name string) bool {
+	return categoryRank(Category(name)) >= 0 || Source(name) == SourceGitleaks
+}
+
 // Rule finds one kind of sensitive value.
 type Rule struct {
 	// ID is a stable lowercase name such as "aws-access-key", used in config,
@@ -48,6 +78,8 @@ type Rule struct {
 	Validate func(match string) bool
 	// Optional rules are off unless enabled by ID or category.
 	Optional bool
+	// Source is where the rule comes from; empty means built in.
+	Source Source
 }
 
 // Accepts reports whether a pattern match is a real finding.
@@ -57,7 +89,7 @@ func (r Rule) Accepts(match string) bool {
 
 var (
 	validID    = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
-	validLabel = regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`)
+	validLabel = regexp.MustCompile(`^[A-Z0-9][A-Z0-9_]*$`)
 )
 
 // check validates r. An invalid ID or category is never repeated in the

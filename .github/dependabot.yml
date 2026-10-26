@@ -4,7 +4,7 @@ version: 2
 # "chore: bump x from 1 to 2", which match the commit message convention
 updates:
   - package-ecosystem: gomod
-    directory: /
+    directories: [/, /tools/gitleaksgen]
     schedule:
       interval: weekly
     commit-message:

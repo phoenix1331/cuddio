@@ -8,11 +8,11 @@ import (
 func TestCustomRule(t *testing.T) {
 	t.Parallel()
 
-	rule, err := CustomRule("acme-token", "secret", "ACME", `acme_(?P<value>[0-9a-f]{8})`)
+	rule, err := CustomRule("acme-token", "secret", "9ACME", `acme_(?P<value>[0-9a-f]{8})`)
 	if err != nil {
 		t.Fatalf("CustomRule() error = %v", err)
 	}
-	if rule.ID != "acme-token" || rule.Category != Secret || rule.Label != "ACME" || rule.Optional {
+	if rule.ID != "acme-token" || rule.Category != Secret || rule.Label != "9ACME" || rule.Source != SourceCustom || rule.Optional {
 		t.Errorf("CustomRule() = %+v", rule)
 	}
 	if got := NewDetector([]Rule{rule}, nil).Find("key acme_deadbeef"); len(got) != 1 || got[0].Start != 9 {
@@ -38,7 +38,8 @@ func TestCustomRuleErrors(t *testing.T) {
 		{"lowercase label", "acme", "pii", "acme", "x", "rule acme: label must be uppercase letters, digits and underscores"},
 		{"bad id", secret, "pii", "ACME", "x", "rule id must be lowercase letters, digits and single hyphens"},
 		{"bad id and bad pattern", secret, "pii", "ACME", "(", "rule id must be lowercase letters, digits and single hyphens"},
-		{"id is a category", "pii", "pii", "ACME", "x", "rule pii: id is a category name"},
+		{"id is a category", "pii", "pii", "ACME", "x", "rule pii: id is a category or rule set name"},
+		{"id is a rule set", "gitleaks", "secret", "ACME", "x", "rule gitleaks: id is a category or rule set name"},
 	}
 
 	for _, tt := range tests {

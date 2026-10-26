@@ -104,6 +104,56 @@ func TestSelect(t *testing.T) {
 	}
 }
 
+func TestRuleSets(t *testing.T) {
+	t.Parallel()
+
+	vendored := func(id string) Rule {
+		r := rule(id, Secret, false)
+		r.Source = SourceGitleaks
+		return r
+	}
+	reg, err := NewRegistry([]Rule{vendored("aaa-token"), rule("zzz-key", Secret, false), rule("email", PII, false), vendored("github-pat")})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got, want := ids(reg.Rules()), "zzz-key,aaa-token,github-pat,email"; got != want {
+		t.Errorf("Rules() = %s, want %s: vendored rules sort after built-ins in their category", got, want)
+	}
+
+	tests := []struct {
+		name    string
+		enable  []string
+		disable []string
+		want    string
+	}{
+		{"disable the rule set", nil, []string{"gitleaks"}, "zzz-key,email"},
+		{"id overrides a disabled rule set", []string{"github-pat"}, []string{"gitleaks"}, "zzz-key,github-pat,email"},
+		{"rule set overrides a disabled category", []string{"gitleaks"}, []string{"secret"}, "aaa-token,github-pat,email"},
+		{"near miss of the rule set", nil, []string{"gitleak"}, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := reg.Select(tt.enable, tt.disable)
+			if tt.want == "" {
+				if err == nil || !strings.Contains(err.Error(), `did you mean "gitleaks"?`) {
+					t.Errorf("Select() error = %v, want a gitleaks suggestion", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Select() error = %v", err)
+			}
+			if ids(got) != tt.want {
+				t.Errorf("Select(%v, %v) = %s, want %s", tt.enable, tt.disable, ids(got), tt.want)
+			}
+		})
+	}
+}
+
 func TestSelectRejectsUnknownNames(t *testing.T) {
 	t.Parallel()
 
@@ -161,7 +211,8 @@ func TestNewRegistryRejectsBadRules(t *testing.T) {
 		{"no pattern", []Rule{noPattern}, "no pattern"},
 		{"uppercase keyword", []Rule{upperKeyword}, "keywords must be non-empty and lowercase"},
 		{"empty keyword", []Rule{emptyKeyword}, "keywords must be non-empty and lowercase"},
-		{"id is a category", []Rule{rule("pii", PII, false)}, "id is a category name"},
+		{"id is a category", []Rule{rule("pii", PII, false)}, "id is a category or rule set name"},
+		{"id is a rule set", []Rule{rule("gitleaks", Secret, false)}, "id is a category or rule set name"},
 		{"duplicate id", []Rule{good, rule("email", Secret, false)}, "defined more than once"},
 	}
 

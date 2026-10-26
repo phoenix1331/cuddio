@@ -30,6 +30,6 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		Stderr:    stderr,
 		WorkDir:   workDir,
 		ConfigDir: configDir,
-		Rules:     rules.Builtin(),
+		Rules:     rules.All(),
 	})
 }

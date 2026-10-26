@@ -11,6 +11,7 @@ testdata/** -text
 /examples           export-ignore
 /scripts            export-ignore
 /tapes              export-ignore
+/tools              export-ignore
 testdata            export-ignore
 /.editorconfig      export-ignore
 /.gitattributes     export-ignore

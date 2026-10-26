@@ -16,7 +16,8 @@ First of a planned set of Welsh-named Go tools sharing one visual style for READ
 | `network_test.go` | No-network checks: build imports and linked binary symbols |
 | `internal/cli/` | Cobra commands; `Env` carries args, stdin, stdout, stderr, build info and rules so commands run in-process in tests; root command cleans stdin or `FILE` to stdout or `-o` |
 | `internal/detect/` | Rule type, registry with enable/disable selection, Luhn and entropy validators, allowlist (built-in values plus config values and patterns), `Detector` turning rules into `replace.Match` spans |
-| `internal/rules/` | `Builtin()` rule set passed in by `main`: `secrets.go`, `pii.go`; vendored gitleaks rules (planned) |
+| `internal/rules/` | `Builtin()` (`secrets.go`, `pii.go`), `Gitleaks()` (`gitleaks.go` over generated `gitleaks_gen.go`), and `All()`, the set `main` passes in |
+| `tools/gitleaksgen/` | Nested module: turns gitleaks' `config/gitleaks.toml` into `internal/rules/gitleaks_gen.go`; run by `scripts/update-gitleaks-rules.sh`, tested by `scripts/check.sh` |
 | `internal/textscan/` | Streaming line scanner for plain text and logs; buffers PEM blocks, keeps line endings, caps line length; golden fixtures in `testdata/text/`, fuzz corpus in `testdata/fuzz/` |
 | `internal/sqlscan/` | Streaming SQL tokeniser, dialects, column tracking (planned) |
 | `internal/replace/` | Placeholder tokens consistent within a run, overlap resolution; fake values (planned) |
@@ -57,9 +58,15 @@ First of a planned set of Welsh-named Go tools sharing one visual style for READ
 | Errors repeat a name from config only as a near miss (two edits) of a real setting, rule or category; otherwise they give a line number or position. Quoted keys, anchors and non-core tags are dropped | A value typed in the wrong place (a secret as a key, in `enable`, as a rule ID) is never echoed; a shape check alone would pass lowercase hex keys |
 | Security tests in `internal/cli/security_test.go` run every clean path with known values, assert none appear in stdout, stderr or output, and compare the input's SHA-256, mode and mtime before and after | One place proves "never print a secret" and "never touch the input"; `assertNoLeak` is reused by `--check` and `--report` |
 | `go.yaml.in/yaml/v3` | Maintained successor of the archived `gopkg.in/yaml.v3`; v4 is still a release candidate |
-| Rules sorted by category (secret, then pii), then ID | Output never depends on registration order; when two rules match the same value, the secret label wins |
-| Enable/disable: category entries first, ID entries override, disable wins at the same level; unknown names are errors | `disable: [pii]` plus `enable: [email]` reads naturally; a typo never silently leaves a rule on |
-| Rule IDs lowercase kebab case, labels uppercase, IDs never equal a category name | IDs match the gitleaks style; labels fit `<{label}_{n}>`; config names stay unambiguous |
+| Rules sorted by category (secret, then pii), then source (vendored last), then ID | Output never depends on registration order; when two rules match the same span, the secret label wins, then cuddio's own rule over a vendored one |
+| gitleaks rules vendored as generated Go, not embedded TOML | No TOML parser in the binary; patterns checked at generation; reviewable diffs. Detail in `.claude/docs/gitleaks-spike.md` |
+| Generator rewrites gitleaks' secret capture groups to `(?P<value>...)` in the pattern text, then proves with `regexp/syntax` that only names changed | Reuses the existing value-group mechanism; `syntax.Regexp.String()` would make patterns unreadable |
+| Left out of gitleaks: `generic-api-key`, `gcp-api-key`, path-scoped rules; upstream rules sharing a built-in ID dropped by `All()` | `generic-api-key` costs more than all other upstream rules together and is noisy; `gcp-api-key`'s allowlist holds live-format keys; stdin has no path; built-ins are tuned for cuddio |
+| Vendored rules keep gitleaks semantics: secret entropy must exceed the threshold, global and rule allowlists (secret regexes, stopwords) apply | Same findings as gitleaks; allowlists needing a path or commit can never apply to cuddio input, so the generator drops them and fails on any other unsupported allowlist |
+| Vendored labels are the uppercased ID (`GITLAB_PAT`); labels may start with a digit | gitleaks has no labels; `1password-*` IDs start with one |
+| `gitleaks` is a toggle name like a category: categories apply first, then rule sets, then IDs | `disable: [gitleaks]` turns the vendored set off while `enable: [gitlab-pat]` keeps one |
+| Enable/disable: category entries first, then rule sets, then IDs override, disable wins at the same level; unknown names are errors | `disable: [pii]` plus `enable: [email]` reads naturally; a typo never silently leaves a rule on |
+| Rule IDs lowercase kebab case, labels uppercase, IDs never equal a category or rule set name | IDs match the gitleaks style; labels fit `<{label}_{n}>`; config names stay unambiguous |
 | Built-in allowlist is exact, case-sensitive values only (reserved domains, `test@example.com`, loopback, AWS and Stripe documentation keys) | A near miss is redacted, which is the safe failure; fixtures use `alice@example.com` and still get redacted |
 | Allowlist patterns match anywhere unless anchored; invalid patterns report the RE2 error code only | Matches Go's `regexp` behaviour; `regexp` errors quote the pattern, which may hold the secret being allowlisted |
 | Same value, same token for the whole run, keyed by value alone; each label numbered by first appearance | The AI can tell values apart across a file; one token per value keeps restore unambiguous even when two rules match it |
@@ -100,6 +107,8 @@ First of a planned set of Welsh-named Go tools sharing one visual style for READ
 | `github.com/spf13/pflag` | v1.0.9 (indirect) | Cobra's flags; the only allowed importer of `net` |
 | `github.com/inconshreveable/mousetrap` | v1.1.0 (indirect) | Cobra's Windows Explorer launch detection |
 | `go.yaml.in/yaml/v3` | v3.0.5 | Config file decoding (MIT and Apache-2.0) |
+| gitleaks rules (vendored, not a module) | v8.30.1, `config/gitleaks.toml` SHA-256 `e163e53b...a329caf` | Upstream rules as generated Go; MIT notice in `LICENSE` and the generated header; pinned in `scripts/update-gitleaks-rules.sh` |
+| `github.com/BurntSushi/toml` | v1.5.0, `tools/gitleaksgen` only | Reads gitleaks' TOML in the generator; never in `go list -deps .` |
 
 Tools (not module dependencies): golangci-lint v2.15, govulncheck, GoReleaser v2, actionlint.
 

@@ -18,12 +18,12 @@ func CustomRule(id, category, label, pattern string) (Rule, error) {
 		return Rule{}, fmt.Errorf("rule %s: %w", id, err)
 	}
 
-	rule := Rule{ID: id, Category: Category(category), Label: label, Pattern: re}
+	rule := Rule{ID: id, Category: Category(category), Label: label, Pattern: re, Source: SourceCustom}
 	if err := rule.check(); err != nil {
 		return Rule{}, err
 	}
-	if categoryRank(Category(id)) >= 0 {
-		return Rule{}, fmt.Errorf("rule %s: id is a category name", id)
+	if isGroupName(id) {
+		return Rule{}, fmt.Errorf("rule %s: id is a category or rule set name", id)
 	}
 
 	return rule, nil

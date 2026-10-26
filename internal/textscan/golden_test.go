@@ -59,7 +59,7 @@ func expand(template string) string {
 func newDetector(tb testing.TB) *detect.Detector {
 	tb.Helper()
 
-	reg, err := detect.NewRegistry(rules.Builtin())
+	reg, err := detect.NewRegistry(rules.All())
 	if err != nil {
 		tb.Fatal(err)
 	}

@@ -20,7 +20,7 @@ First of a planned set of Welsh-named Go tools sharing one visual style for READ
 | `tools/gitleaksgen/` | Nested module: turns gitleaks' `config/gitleaks.toml` into `internal/rules/gitleaks_gen.go`; run by `scripts/update-gitleaks-rules.sh`, tested by `scripts/check.sh` |
 | `internal/textscan/` | Streaming line scanner for plain text and logs; buffers PEM blocks, keeps line endings, caps line length; golden fixtures in `testdata/text/`, fuzz corpus in `testdata/fuzz/` |
 | `internal/sqltest/` | Test support only: Laravel-shaped fixture dumps (`testdata/sql/`, embedded), `WriteDump` for large generated dumps, `Check` for MySQL, PostgreSQL and SQLite validity, `OpenSQLite` |
-| `internal/sqlscan/` | Streaming SQL tokeniser, dialects, column tracking (planned) |
+| `internal/sqlscan/` | Streaming MySQL tokeniser (`NewMySQL`, `Token`, `Value`); statements, column tracking and other dialects planned |
 | `internal/replace/` | Placeholder tokens consistent within a run, overlap resolution; fake values (planned) |
 | `internal/mapstore/` | Local mapping store, `0600` files with TTL (planned) |
 | `internal/clipboard/` | Clipboard access including WSL (planned) |
@@ -103,6 +103,12 @@ First of a planned set of Welsh-named Go tools sharing one visual style for READ
 | `Check` skips mysql `DELIMITER ;;` blocks and psql meta-commands (`\restrict`, `\unrestrict`); COPY data rows are checked in Go (field count on unescaped tabs, no trailing lone backslash) | None of these are SQL; TiDB cannot parse triggers or routines; blocks hold code, not row data |
 | SQL fixtures use `{{fake N S}}` and `{{hex N S}}` with a seed; a test runs every secret rule over the committed templates | Distinct deterministic tokens per row; nothing committed looks live to push protection |
 | `golang.org/x/text` pinned at v0.41.0 | TiDB's parser pulls in v0.39.0, affected by GO-2026-6629 (not called, but the module scan flags it) |
+| SQL tokens keep their exact source `Text`; joining them gives the input back | Everything cuddio does not change passes through byte for byte; the fuzz test checks it |
+| SQL token cap of 16 MiB (`DefaultMaxToken`); a longer value is an error, never split | Same reasoning as the text line cap; LONGTEXT session payloads fit |
+| MySQL executable comments (`/*!40101 ... */`) are tokenised inside: `DirectiveStart`, normal tokens, `DirectiveEnd` | MySQL runs their contents; strings inside (`/*!80000 '+'*/`) must reach the same rules as any other |
+| Charset introducers (`_binary`, `_utf8mb4`) are recorded on the next literal (`Token.Charset`); `N'...'` gives `N` | Lets column handling tell binary values from text without a second pass |
+| Unterminated strings, identifiers and comments at end of input are tokens marked `Unterminated`, not errors | A truncated dump still streams; the caller decides, and redacting the open value is the safe choice |
+| SQL memory test forces a GC every 512 KiB and checks peak live heap (54 KiB growth over 10 MiB) | Total heap size mostly measures garbage between collections, which flaked at Go's 4 MiB minimum GC target |
 | `.sql` input or `--format sql` errors until the SQL scanner exists | Treating a dump as plain text would change behaviour silently once SQL support lands |
 
 ## Dependencies and constraints

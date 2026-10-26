@@ -15,7 +15,7 @@ First of a planned set of Welsh-named Go tools sharing one visual style for READ
 | `main.go` | `main` package at the root so `go install github.com/phoenix1331/cuddio@latest` works; wiring only, holds the ldflags `version` |
 | `network_test.go` | No-network checks: build imports and linked binary symbols |
 | `internal/cli/` | Cobra commands; `Env` carries args, stdin, stdout, stderr and build info so commands run in-process in tests |
-| `internal/detect/` | Rule type, registry with enable/disable selection, Luhn and entropy validators; allowlist (planned) |
+| `internal/detect/` | Rule type, registry with enable/disable selection, Luhn and entropy validators, allowlist (built-in values plus config values and patterns) |
 | `internal/rules/` | Built-in and vendored gitleaks rules (planned) |
 | `internal/textscan/` | Streaming scanner for plain text and logs (planned) |
 | `internal/sqlscan/` | Streaming SQL tokeniser, dialects, column tracking (planned) |
@@ -54,6 +54,8 @@ First of a planned set of Welsh-named Go tools sharing one visual style for READ
 | Rules sorted by category (secret, then pii), then ID | Output never depends on registration order; when two rules match the same value, the secret label wins |
 | Enable/disable: category entries first, ID entries override, disable wins at the same level; unknown names are errors | `disable: [pii]` plus `enable: [email]` reads naturally; a typo never silently leaves a rule on |
 | Rule IDs lowercase kebab case, labels uppercase, IDs never equal a category name | IDs match the gitleaks style; labels fit `<{label}_{n}>`; config names stay unambiguous |
+| Built-in allowlist is exact, case-sensitive values only (reserved domains, `test@example.com`, loopback, AWS and Stripe documentation keys) | A near miss is redacted, which is the safe failure; fixtures use `alice@example.com` and still get redacted |
+| Allowlist patterns match anywhere unless anchored; invalid patterns report the RE2 error code only | Matches Go's `regexp` behaviour; `regexp` errors quote the pattern, which may hold the secret being allowlisted |
 
 ## Dependencies and constraints
 

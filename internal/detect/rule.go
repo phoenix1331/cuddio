@@ -32,9 +32,12 @@ type Rule struct {
 	// Label names the value in placeholders, such as EMAIL in <EMAIL_1>.
 	Label string
 	// Pattern is an RE2 expression; Go's regexp package guarantees linear time
-	// matching, so no input can make a rule hang.
+	// matching, so no input can make a rule hang. When it has groups named
+	// "value", only the first that took part in a match is redacted, so
+	// "PASSWORD=" stays readable around the hidden value.
 	Pattern *regexp.Regexp
-	// Validate, when set, must accept a match before it counts.
+	// Validate, when set, must accept a match (the value group when the
+	// pattern has one) before it counts.
 	Validate func(match string) bool
 	// Optional rules are off unless enabled by ID or category.
 	Optional bool

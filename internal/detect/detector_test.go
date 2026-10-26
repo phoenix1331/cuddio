@@ -14,6 +14,7 @@ func TestDetectorFind(t *testing.T) {
 	email := Rule{ID: "email", Category: PII, Label: "EMAIL", Pattern: regexp.MustCompile(`[a-z]+@[a-z.]+`)}
 	card := Rule{ID: "card", Category: PII, Label: "CARD", Pattern: regexp.MustCompile(`\d{16}`), Validate: Luhn}
 	digits := Rule{ID: "digits", Category: PII, Label: "NUM", Pattern: regexp.MustCompile(`\d*`)}
+	assign := Rule{ID: "assign", Category: Secret, Label: "SECRET", Pattern: regexp.MustCompile(`PASS=(?:"(?P<value>[^"]*)"|(?P<value>\S+))`), Validate: func(v string) bool { return v != "null" }}
 	allow, err := NewAllowlist([]string{"ok@example.org"}, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -47,6 +48,13 @@ func TestDetectorFind(t *testing.T) {
 		{"empty matches ignored", []Rule{digits}, nil, "a1b", []replace.Match{
 			{Start: 1, End: 2, Label: "NUM"},
 		}},
+		{"first value group", []Rule{assign}, nil, `PASS=hunter2 PASS="two words"`, []replace.Match{
+			{Start: 5, End: 12, Label: "SECRET"},
+			{Start: 19, End: 28, Label: "SECRET"},
+		}},
+		{"empty value group ignored", []Rule{assign}, nil, `PASS=""`, nil},
+		{"validator sees the value group", []Rule{assign}, nil, `PASS=null`, nil},
+		{"allowlist sees the value group", []Rule{assign}, allow, `PASS=ok@example.org`, nil},
 	}
 
 	for _, tt := range tests {

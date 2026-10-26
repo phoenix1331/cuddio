@@ -16,7 +16,7 @@ First of a planned set of Welsh-named Go tools sharing one visual style for READ
 | `network_test.go` | No-network checks: build imports and linked binary symbols |
 | `internal/cli/` | Cobra commands; `Env` carries args, stdin, stdout, stderr, build info and rules so commands run in-process in tests; root command cleans stdin or `FILE` to stdout or `-o` |
 | `internal/detect/` | Rule type, registry with enable/disable selection, Luhn and entropy validators, allowlist (built-in values plus config values and patterns), `Detector` turning rules into `replace.Match` spans |
-| `internal/rules/` | `Builtin()` rule set passed in by `main` (empty until the secret and PII rules land); vendored gitleaks rules (planned) |
+| `internal/rules/` | `Builtin()` rule set passed in by `main`: secret rules in `secrets.go`; PII and vendored gitleaks rules (planned) |
 | `internal/textscan/` | Streaming line scanner for plain text and logs; buffers PEM blocks, keeps line endings, caps line length |
 | `internal/sqlscan/` | Streaming SQL tokeniser, dialects, column tracking (planned) |
 | `internal/replace/` | Placeholder tokens consistent within a run, overlap resolution; fake values (planned) |
@@ -65,6 +65,12 @@ First of a planned set of Welsh-named Go tools sharing one visual style for READ
 | `-o` writes a temporary file (mode `0600`) in the target directory, then renames it | No partial output on error; the input is never truncated, even through a link; `os.SameFile` refuses the input itself, including redirected stdin, even with `--force` |
 | No `FILE` and stdin is a terminal: show help | Waiting for typed input looks like a hang; a pipe or redirected file is read as normal |
 | Built-in rules reach the CLI through `Env.Rules`, set in `main` | Tests run the full pipeline with small rule sets they define |
+| A rule's `(?P<value>...)` groups (Go allows repeated names) mark the part to redact; the first that took part wins, otherwise the whole match | Keys, schemes and quotes stay readable (`DB_PASSWORD=<SECRET_1>`); validators and the allowlist see only the value |
+| Assignment rules skip empty values, `null`/booleans, `${VAR}`/`$VAR`/`{{ }}`/`%VAR%` references and `<LABEL_N>` tokens | Names of secrets are not secrets; re-cleaning cleaned output is a no-op |
+| `.env` rule matches commented-out lines; key names matched case-insensitively at line start | An old key is still a key; anchoring to line start keeps prose like `echo PASSWORD=x` out |
+| `high-entropy-assignment`: value of 32+ characters starting with a letter, digit or `+`, mixed case and digits, entropy 4.3 bits per byte or more | Hex (git hashes, UUIDs) peaks at 4 bits; URLs and paths never qualify; public random values such as SRI hashes are an accepted false positive |
+| Private key rule matches to the end of the chunk when `-----END` is missing | A truncated key in a log is still hidden |
+| Rule fixtures built at test time from a deterministic `fake(n)` helper | No live-format token in the repository for push protection or users' module caches to flag |
 | `.sql` input or `--format sql` errors until the SQL scanner exists | Treating a dump as plain text would change behaviour silently once SQL support lands |
 
 ## Dependencies and constraints

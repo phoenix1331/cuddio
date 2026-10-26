@@ -15,5 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `-o FILE` writes to a file instead, replacing it in one step so a failed run leaves nothing half-written; it refuses to write over the input (including through a hard link or redirected stdin) and refuses an existing file unless `--force` is given
 - `--format text|sql` chooses how input is read; by default `.sql` files are SQL and everything else is text
 - Lines longer than 1 MiB stop the run with an error rather than being split, so a value is never cut in two and missed
+- Built-in secret rules: AWS, GitHub, Stripe, Slack, OpenAI, Anthropic and Google keys; JWTs; `Authorization` headers and bearer tokens; cookies; passwords in URLs and DSNs; token query parameters; `.env` assignments whose key names a secret (commented-out lines included); secret fields in JSON and PHP arrays; Laravel `APP_KEY`; private key blocks; and long, random-looking assignment values
+- Only the secret part of a match is replaced (`DB_PASSWORD=<SECRET_1>`, `mysql://app:<PASSWORD_1>@db`), and empty values, `null`, references such as `${DB_PASSWORD}` and existing placeholders are left alone, so cleaning output twice changes nothing
 
 [Unreleased]: https://github.com/phoenix1331/cuddio/commits/main

@@ -11,5 +11,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `cuddio --version` reports the release version, or the module version for `go install` builds
 - Configuration from a project `.cuddio.yaml` (found by walking up to the repository root) layered over a global `cuddio/config.yaml` in the user config directory; unknown settings are rejected, and errors never repeat values from the file
 - `--config FILE` uses a specific config file instead of the project one
+- `cuddio` cleans stdin, and `cuddio FILE` cleans a file, writing to stdout; line endings (LF, CRLF, no final newline) are kept exactly, and PEM blocks such as private keys are scanned as one piece
+- `-o FILE` writes to a file instead, replacing it in one step so a failed run leaves nothing half-written; it refuses to write over the input (including through a hard link or redirected stdin) and refuses an existing file unless `--force` is given
+- `--format text|sql` chooses how input is read; by default `.sql` files are SQL and everything else is text
+- Lines longer than 1 MiB stop the run with an error rather than being split, so a value is never cut in two and missed
 
 [Unreleased]: https://github.com/phoenix1331/cuddio/commits/main

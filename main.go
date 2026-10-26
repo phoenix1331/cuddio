@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/phoenix1331/cuddio/internal/cli"
+	"github.com/phoenix1331/cuddio/internal/rules"
 )
 
 // version is stamped by release builds with -ldflags "-X main.version=v1.2.3".
@@ -29,5 +30,6 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		Stderr:    stderr,
 		WorkDir:   workDir,
 		ConfigDir: configDir,
+		Rules:     rules.Builtin(),
 	})
 }

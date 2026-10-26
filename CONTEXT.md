@@ -14,10 +14,10 @@ First of a planned set of Welsh-named Go tools sharing one visual style for READ
 |---|---|
 | `main.go` | `main` package at the root so `go install github.com/phoenix1331/cuddio@latest` works; wiring only, holds the ldflags `version` |
 | `network_test.go` | No-network checks: build imports and linked binary symbols |
-| `internal/cli/` | Cobra commands; `Env` carries args, stdin, stdout, stderr and build info so commands run in-process in tests |
-| `internal/detect/` | Rule type, registry with enable/disable selection, Luhn and entropy validators, allowlist (built-in values plus config values and patterns) |
-| `internal/rules/` | Built-in and vendored gitleaks rules (planned) |
-| `internal/textscan/` | Streaming scanner for plain text and logs (planned) |
+| `internal/cli/` | Cobra commands; `Env` carries args, stdin, stdout, stderr, build info and rules so commands run in-process in tests; root command cleans stdin or `FILE` to stdout or `-o` |
+| `internal/detect/` | Rule type, registry with enable/disable selection, Luhn and entropy validators, allowlist (built-in values plus config values and patterns), `Detector` turning rules into `replace.Match` spans |
+| `internal/rules/` | `Builtin()` rule set passed in by `main` (empty until the secret and PII rules land); vendored gitleaks rules (planned) |
+| `internal/textscan/` | Streaming line scanner for plain text and logs; buffers PEM blocks, keeps line endings, caps line length |
 | `internal/sqlscan/` | Streaming SQL tokeniser, dialects, column tracking (planned) |
 | `internal/replace/` | Placeholder tokens consistent within a run, overlap resolution; fake values (planned) |
 | `internal/mapstore/` | Local mapping store, `0600` files with TTL (planned) |
@@ -59,6 +59,13 @@ First of a planned set of Welsh-named Go tools sharing one visual style for READ
 | Same value, same token for the whole run, keyed by value alone; each label numbered by first appearance | The AI can tell values apart across a file; one token per value keeps restore unambiguous even when two rules match it |
 | Overlaps: longest span wins, then lower rule priority, then earlier start | A whole DSN or private key beats a fragment inside it; ties stay deterministic |
 | Placeholder format must contain `{label}` and `{n}` | Without both, distinct values could share a token and restore would be lossy |
+| Text is redacted line by line; a PEM block (`-----BEGIN` to `-----END`) is one chunk, capped at 64 KiB | Bounded memory on any input size; private keys span lines and must reach a rule whole |
+| Line ending split off before redaction and written back as read | Output keeps LF, CRLF and a missing final newline byte for byte; rules never swallow the `\r` |
+| A line over 1 MiB is an error, not split | A split could cut a secret in two and let both halves through; failing is the safe outcome |
+| `-o` writes a temporary file (mode `0600`) in the target directory, then renames it | No partial output on error; the input is never truncated, even through a link; `os.SameFile` refuses the input itself, including redirected stdin, even with `--force` |
+| No `FILE` and stdin is a terminal: show help | Waiting for typed input looks like a hang; a pipe or redirected file is read as normal |
+| Built-in rules reach the CLI through `Env.Rules`, set in `main` | Tests run the full pipeline with small rule sets they define |
+| `.sql` input or `--format sql` errors until the SQL scanner exists | Treating a dump as plain text would change behaviour silently once SQL support lands |
 
 ## Dependencies and constraints
 

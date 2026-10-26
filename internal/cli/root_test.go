@@ -16,7 +16,9 @@ func execute(t *testing.T, env Env) result {
 	t.Helper()
 
 	var stdout, stderr bytes.Buffer
-	env.Stdin = strings.NewReader("")
+	if env.Stdin == nil {
+		env.Stdin = strings.NewReader("")
+	}
 	env.Stdout = &stdout
 	env.Stderr = &stderr
 	if env.ReadBuildInfo == nil {
@@ -74,8 +76,9 @@ func TestVersionFallsBackToRealBuildInfo(t *testing.T) {
 func TestHelpIncludesBestEffortNotice(t *testing.T) {
 	t.Parallel()
 
-	for _, args := range [][]string{nil, {"--help"}} {
-		got := execute(t, Env{Args: args})
+	for _, env := range []Env{{Args: []string{"--help"}}, {Stdin: terminal{}}} {
+		args := env.Args
+		got := execute(t, env)
 
 		if got.code != exitOK {
 			t.Fatalf("args %q: exit code = %d, want %d", args, got.code, exitOK)
@@ -97,7 +100,7 @@ func TestUsageErrorsExitWithError(t *testing.T) {
 		want string
 	}{
 		{"unknown flag", []string{"--nope"}, "cuddio: unknown flag: --nope\n"},
-		{"unexpected argument", []string{"extra"}, `cuddio: unknown command "extra" for "cuddio"` + "\n"},
+		{"more than one file", []string{"a.log", "b.log"}, "cuddio: accepts at most 1 arg(s), received 2\n"},
 	}
 
 	for _, tt := range tests {

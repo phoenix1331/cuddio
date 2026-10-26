@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/phoenix1331/cuddio/internal/config"
+	"github.com/phoenix1331/cuddio/internal/detect"
 )
 
 const (
@@ -36,10 +37,13 @@ type Env struct {
 	// ConfigDir is the user config directory; empty skips the global file.
 	ConfigDir     string
 	ReadBuildInfo func() (*debug.BuildInfo, bool)
+	// Rules are the built-in rules before config switches any on or off.
+	Rules []detect.Rule
 }
 
 // app holds the command tree and the state its commands share.
 type app struct {
+	env    Env
 	root   *cobra.Command
 	config config.Config
 }
@@ -63,15 +67,16 @@ func newApp(env Env) *app {
 		readBuildInfo = debug.ReadBuildInfo
 	}
 
-	a := &app{}
+	a := &app{env: env}
 	var configPath string
+	var flags cleanFlags
 
 	cmd := &cobra.Command{
-		Use:           "cuddio",
+		Use:           "cuddio [FILE]",
 		Short:         "Hide secrets and PII in logs, SQL dumps and text before you paste them into AI tools",
 		Long:          longHelp,
 		Version:       resolveVersion(env.Version, readBuildInfo),
-		Args:          cobra.NoArgs,
+		Args:          cobra.MaximumNArgs(1),
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRunE: func(*cobra.Command, []string) error {
@@ -83,12 +88,19 @@ func newApp(env Env) *app {
 			a.config = cfg
 			return err
 		},
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return cmd.Help()
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Waiting for typed input would look like a hang, so show help instead
+			if len(args) == 0 && isTerminal(env.Stdin) {
+				return cmd.Help()
+			}
+			return a.clean(args, flags)
 		},
 	}
 
 	cmd.PersistentFlags().StringVar(&configPath, "config", "", "use this config file instead of the nearest "+config.ProjectFile)
+	cmd.Flags().StringVarP(&flags.output, "output", "o", "", "write to this file instead of stdout; never the input file")
+	cmd.Flags().BoolVar(&flags.force, "force", false, "replace the --output file if it exists")
+	cmd.Flags().StringVar(&flags.format, "format", "", "input format, text or sql (default: sql for .sql files, otherwise text)")
 	cmd.SetVersionTemplate("cuddio {{.Version}}\n")
 	cmd.SetIn(env.Stdin)
 	cmd.SetOut(env.Stdout)

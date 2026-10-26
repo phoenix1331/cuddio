@@ -27,10 +27,11 @@ func writeConfig(t *testing.T, path, content string) {
 func loadedConfig(t *testing.T, env Env) config.Config {
 	t.Helper()
 
+	env.Stdin = strings.NewReader("")
+	env.Stdout = &bytes.Buffer{}
+	env.Stderr = &bytes.Buffer{}
 	a := newApp(env)
 	a.root.SetArgs(env.Args)
-	a.root.SetOut(&bytes.Buffer{})
-	a.root.SetErr(&bytes.Buffer{})
 	if err := a.root.Execute(); err != nil {
 		t.Fatalf("Execute() error = %v", err)
 	}
@@ -47,7 +48,7 @@ func TestConfigSources(t *testing.T) {
 	explicit := filepath.Join(root, "ci.yaml")
 	writeConfig(t, config.GlobalFile(configDir), "mapping:\n  ttl: 10m\n")
 	writeConfig(t, filepath.Join(repo, config.ProjectFile), "mode: fake\n")
-	writeConfig(t, explicit, "placeholder:\n  format: '[{label}]'\n")
+	writeConfig(t, explicit, "placeholder:\n  format: '[{label}:{n}]'\n")
 
 	tests := []struct {
 		name       string
@@ -58,7 +59,7 @@ func TestConfigSources(t *testing.T) {
 	}{
 		{"no files", Env{}, "placeholder", time.Hour, "<{label}_{n}>"},
 		{"global and project", Env{WorkDir: repo, ConfigDir: configDir}, "fake", 10 * time.Minute, "<{label}_{n}>"},
-		{"--config replaces the project file", Env{WorkDir: repo, ConfigDir: configDir, Args: []string{"--config", explicit}}, "placeholder", 10 * time.Minute, "[{label}]"},
+		{"--config replaces the project file", Env{WorkDir: repo, ConfigDir: configDir, Args: []string{"--config", explicit}}, "placeholder", 10 * time.Minute, "[{label}:{n}]"},
 	}
 
 	for _, tt := range tests {

@@ -1,12 +1,16 @@
 // Package rules defines cuddio's built-in detection rules.
 package rules
 
-import "github.com/phoenix1331/cuddio/internal/detect"
+import (
+	"slices"
+
+	"github.com/phoenix1331/cuddio/internal/detect"
+)
 
 // Builtin returns the rules cuddio ships with, freshly built on each call so
 // callers can never change another caller's rules.
 func Builtin() []detect.Rule {
-	return secrets()
+	return slices.Concat(secrets(), pii())
 }
 
 // inCategory sets the category of every rule in rules.

@@ -22,16 +22,17 @@ func fake(n int) string {
 	return b.String()
 }
 
-// clean runs s through every built-in rule, the built-in allowlist and the
-// default placeholder format, as cuddio does with no config.
-func clean(t *testing.T, s string) string {
+// clean runs s through every built-in rule that is on by default plus any in
+// enable, the built-in allowlist and the default placeholder format, as
+// cuddio does with no config.
+func clean(t *testing.T, s string, enable ...string) string {
 	t.Helper()
 
 	reg, err := detect.NewRegistry(Builtin())
 	if err != nil {
 		t.Fatal(err)
 	}
-	selected, err := reg.Select(nil, nil)
+	selected, err := reg.Select(enable, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -206,10 +207,24 @@ var secretCases = map[string][]ruleCase{
 	},
 }
 
-func TestSecretRules(t *testing.T) {
+// allCases merges the per-rule cases of every category.
+func allCases() map[string][]ruleCase {
+	all := map[string][]ruleCase{}
+	for _, cases := range []map[string][]ruleCase{secretCases, piiCases} {
+		for id, c := range cases {
+			all[id] = append(all[id], c...)
+		}
+	}
+
+	return all
+}
+
+// TestRules runs every case through all default rules plus the case's own
+// rule, so optional rules are tested too and overlaps show up.
+func TestRules(t *testing.T) {
 	t.Parallel()
 
-	for id, cases := range secretCases {
+	for id, cases := range allCases() {
 		for _, tt := range cases {
 			t.Run(id+"/"+tt.name, func(t *testing.T) {
 				t.Parallel()
@@ -218,7 +233,7 @@ func TestSecretRules(t *testing.T) {
 				if want == "" {
 					want = tt.in
 				}
-				if got := clean(t, tt.in); got != want {
+				if got := clean(t, tt.in, id); got != want {
 					t.Errorf("clean(%q)\n got %q\nwant %q", tt.in, got, want)
 				}
 			})
@@ -226,14 +241,15 @@ func TestSecretRules(t *testing.T) {
 	}
 }
 
-// TestSecretRulesFireOnTheirOwn runs each positive case through its rule
-// alone, so a case cannot pass only because a different rule caught it.
-func TestSecretRulesFireOnTheirOwn(t *testing.T) {
+// TestRulesFireOnTheirOwn runs each positive case through its rule alone, so
+// a case cannot pass only because a different rule caught it.
+func TestRulesFireOnTheirOwn(t *testing.T) {
 	t.Parallel()
 
-	for _, rule := range secrets() {
+	cases := allCases()
+	for _, rule := range Builtin() {
 		det := detect.NewDetector([]detect.Rule{rule}, nil)
-		for _, tt := range secretCases[rule.ID] {
+		for _, tt := range cases[rule.ID] {
 			if tt.want != "" && len(det.Find(tt.in)) == 0 {
 				t.Errorf("%s/%s: rule does not match on its own", rule.ID, tt.name)
 			}
@@ -241,12 +257,13 @@ func TestSecretRulesFireOnTheirOwn(t *testing.T) {
 	}
 }
 
-func TestEverySecretRuleHasCases(t *testing.T) {
+func TestEveryRuleHasCases(t *testing.T) {
 	t.Parallel()
 
-	for _, rule := range secrets() {
+	cases := allCases()
+	for _, rule := range Builtin() {
 		var matches, misses int
-		for _, tt := range secretCases[rule.ID] {
+		for _, tt := range cases[rule.ID] {
 			if tt.want == "" {
 				misses++
 				continue
@@ -257,8 +274,8 @@ func TestEverySecretRuleHasCases(t *testing.T) {
 			t.Errorf("rule %s has %d matching and %d near-miss cases, want at least one of each", rule.ID, matches, misses)
 		}
 	}
-	for id := range secretCases {
-		if !hasRule(secrets(), id) {
+	for id := range cases {
+		if !hasRule(Builtin(), id) {
 			t.Errorf("cases for unknown rule %s", id)
 		}
 	}

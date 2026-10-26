@@ -16,7 +16,7 @@ First of a planned set of Welsh-named Go tools sharing one visual style for READ
 | `network_test.go` | No-network checks: build imports and linked binary symbols |
 | `internal/cli/` | Cobra commands; `Env` carries args, stdin, stdout, stderr, build info and rules so commands run in-process in tests; root command cleans stdin or `FILE` to stdout or `-o` |
 | `internal/detect/` | Rule type, registry with enable/disable selection, Luhn and entropy validators, allowlist (built-in values plus config values and patterns), `Detector` turning rules into `replace.Match` spans |
-| `internal/rules/` | `Builtin()` rule set passed in by `main`: secret rules in `secrets.go`; PII and vendored gitleaks rules (planned) |
+| `internal/rules/` | `Builtin()` rule set passed in by `main`: `secrets.go`, `pii.go`; vendored gitleaks rules (planned) |
 | `internal/textscan/` | Streaming line scanner for plain text and logs; buffers PEM blocks, keeps line endings, caps line length |
 | `internal/sqlscan/` | Streaming SQL tokeniser, dialects, column tracking (planned) |
 | `internal/replace/` | Placeholder tokens consistent within a run, overlap resolution; fake values (planned) |
@@ -70,6 +70,12 @@ First of a planned set of Welsh-named Go tools sharing one visual style for READ
 | `.env` rule matches commented-out lines; key names matched case-insensitively at line start | An old key is still a key; anchoring to line start keeps prose like `echo PASSWORD=x` out |
 | `high-entropy-assignment`: value of 32+ characters starting with a letter, digit or `+`, mixed case and digits, entropy 4.3 bits per byte or more | Hex (git hashes, UUIDs) peaks at 4 bits; URLs and paths never qualify; public random values such as SRI hashes are an accepted false positive |
 | Private key rule matches to the end of the chunk when `-----END` is missing | A truncated key in a log is still hidden |
+| Public IPs on by default; `private-ip-address` (RFC 1918, unique local, link-local, CGNAT) and `uk-postcode` optional | Brief: private ranges optional, postcodes noisy. Loopback and unspecified are never redacted; documentation ranges are, so examples behave like real data |
+| IP and phone patterns find candidates; `net/netip` and digit counts confirm them | Regex alone cannot validate octets or IPv6 compression; `net/netip` is pure parsing and passes the no-network test |
+| IPs not preceded by a word character, `.` or a single `/`; IPv6 candidates need a digit | Skips user agent versions (`Chrome/130.0.0.0`) and PHP static calls (`Feed::add`) while keeping `http://203.0.113.9/` |
+| Emails never follow `:` (except `mailto:`); `git@` remotes and file extension TLDs (`logo@2x.png`) rejected | `user:password@host` stays a password and a host, not an email |
+| Cards need a Visa, Mastercard, Amex or Discover prefix plus Luhn | Luhn alone passes one in ten random numbers, including millisecond timestamps |
+| `home-directory` hides only the username; Windows names may contain spaces; `Shared`, `Public`, `Default` skipped | Paths stay readable; `C:\Users\Jane Smith\` does not leak a surname |
 | Rule fixtures built at test time from a deterministic `fake(n)` helper | No live-format token in the repository for push protection or users' module caches to flag |
 | `.sql` input or `--format sql` errors until the SQL scanner exists | Treating a dump as plain text would change behaviour silently once SQL support lands |
 

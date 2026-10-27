@@ -99,10 +99,7 @@ func cleanValue(tok Token, rd Redactor, f field) string {
 	switch tok.Kind {
 	case String:
 		value := tok.Value()
-		cleaned := rd.Redact(value)
-		if f.label != "" {
-			cleaned = rd.Whole(f.label, value, f.maxLen)
-		}
+		cleaned := cleanField(rd, f, value)
 		if cleaned == value {
 			return tok.Text
 		}
@@ -117,6 +114,16 @@ func cleanValue(tok Token, rd Redactor, f field) string {
 	}
 
 	return tok.Text
+}
+
+// cleanField redacts value whole when f is a sensitive column, otherwise
+// with pattern rules.
+func cleanField(rd Redactor, f field, value string) string {
+	if f.label != "" {
+		return rd.Whole(f.label, value, f.maxLen)
+	}
+
+	return rd.Redact(value)
 }
 
 var (
@@ -241,15 +248,16 @@ func cleanCopyRow(line string, rd Redactor, rows *copyRows) string {
 
 	fields := splitCopyFields(body)
 	changed := false
-	for i, field := range fields {
-		if field == `\N` {
+	for i, raw := range fields {
+		if raw == `\N` {
 			continue
 		}
-		value := decodeCopy(field)
-		cleaned := rd.Redact(value)
-		if i < len(rows.fields) && rows.fields[i].label != "" {
-			cleaned = rd.Whole(rows.fields[i].label, value, rows.fields[i].maxLen)
+		value := decodeCopy(raw)
+		var f field
+		if i < len(rows.fields) {
+			f = rows.fields[i]
 		}
+		cleaned := cleanField(rd, f, value)
 		if cleaned != value {
 			fields[i] = copyEscaper.Replace(cleaned)
 			changed = true

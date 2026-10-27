@@ -22,11 +22,19 @@ type Pair struct {
 // gets the same token, and each label is numbered from 1 in order of first
 // appearance. Use one per run; it is not safe for concurrent use.
 type Placeholders struct {
-	format  string
-	token   *regexp.Regexp
-	byValue map[string]string
-	counts  map[string]int
-	pairs   []Pair
+	format string
+	// token matches a whole token; inText finds tokens inside text, with
+	// the label and number as groups; prefix is the literal text before
+	// the first field, a cheap check before inText runs.
+	token, inText *regexp.Regexp
+	prefix        string
+	byValue       map[string]string
+	counts        map[string]int
+	pairs         []Pair
+	// issued holds every token handed out or seeded; reserved holds
+	// token-shaped text seen in the input, which Token never hands out.
+	issued, reserved map[string]bool
+	ambiguous        bool
 }
 
 // NewPlaceholders returns a placeholder generator for format, which must
@@ -36,14 +44,69 @@ func NewPlaceholders(format string) (*Placeholders, error) {
 		return nil, errors.New("placeholder format must contain {label} and {n}")
 	}
 
-	return &Placeholders{format: format, token: tokenPattern(format), byValue: map[string]string{}, counts: map[string]int{}}, nil
+	body := tokenPattern(format)
+	prefix, _, _ := strings.Cut(format, "{")
+
+	return &Placeholders{
+		format:   format,
+		token:    regexp.MustCompile("^" + body + "$"),
+		inText:   regexp.MustCompile(body),
+		prefix:   prefix,
+		byValue:  map[string]string{},
+		counts:   map[string]int{},
+		issued:   map[string]bool{},
+		reserved: map[string]bool{},
+	}, nil
 }
 
-// tokenPattern matches a whole token in format: {label} as uppercase
-// letters, digits and underscores, {n} as a number from 1.
-func tokenPattern(format string) *regexp.Regexp {
-	fields := strings.NewReplacer(regexp.QuoteMeta("{label}"), `[A-Z0-9_]+`, regexp.QuoteMeta("{n}"), `[1-9][0-9]*`)
-	return regexp.MustCompile("^" + fields.Replace(regexp.QuoteMeta(format)) + "$")
+// tokenPattern matches a token in format: {label} as uppercase letters,
+// digits and underscores, {n} as a number from 1, captured as "label" and
+// "n".
+func tokenPattern(format string) string {
+	fields := strings.NewReplacer(regexp.QuoteMeta("{label}"), `(?P<label>[A-Z0-9_]+)`, regexp.QuoteMeta("{n}"), `(?P<n>[1-9][0-9]*)`)
+	return fields.Replace(regexp.QuoteMeta(format))
+}
+
+// Seed loads pairs from an earlier run, so their values keep their tokens
+// and new tokens carry on from the highest number per label. A token that
+// does not parse in this format (the format changed) still keeps its value.
+func (p *Placeholders) Seed(pairs []Pair) {
+	for _, pair := range pairs {
+		if _, ok := p.byValue[pair.Value]; ok || p.issued[pair.Token] {
+			continue
+		}
+		p.byValue[pair.Value] = pair.Token
+		p.issued[pair.Token] = true
+		p.pairs = append(p.pairs, pair)
+		if m := p.token.FindStringSubmatch(pair.Token); m != nil {
+			label := m[p.token.SubexpIndex("label")]
+			n, _ := strconv.Atoi(m[p.token.SubexpIndex("n")])
+			p.counts[label] = max(p.counts[label], n)
+		}
+	}
+}
+
+// Reserve notes every token-shaped piece of s, text from the input, so
+// Token never hands out a token the input already holds. If s holds a
+// token that was already handed out, the run is ambiguous: restore could
+// not tell the input's text from the value the token stands for.
+func (p *Placeholders) Reserve(s string) {
+	if !strings.Contains(s, p.prefix) {
+		return
+	}
+	for _, token := range p.inText.FindAllString(s, -1) {
+		if p.issued[token] {
+			p.ambiguous = true
+		}
+		p.reserved[token] = true
+	}
+}
+
+// Ambiguous reports whether the input held a token this run (or a seeded
+// one) also handed out for a real value. A mapping from such a run must
+// not be stored.
+func (p *Placeholders) Ambiguous() bool {
+	return p.ambiguous
 }
 
 // IsToken reports whether s is a whole token in this format, such as one
@@ -59,9 +122,13 @@ func (p *Placeholders) Token(label, value string) string {
 		return token
 	}
 
-	p.counts[label]++
-	token := strings.NewReplacer("{label}", label, "{n}", strconv.Itoa(p.counts[label])).Replace(p.format)
+	var token string
+	for token == "" || p.issued[token] || p.reserved[token] {
+		p.counts[label]++
+		token = strings.NewReplacer("{label}", label, "{n}", strconv.Itoa(p.counts[label])).Replace(p.format)
+	}
 	p.byValue[value] = token
+	p.issued[token] = true
 	p.pairs = append(p.pairs, Pair{Token: token, Value: value})
 
 	return token

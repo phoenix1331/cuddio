@@ -13,6 +13,7 @@ import (
 
 	"github.com/phoenix1331/cuddio/internal/config"
 	"github.com/phoenix1331/cuddio/internal/detect"
+	"github.com/phoenix1331/cuddio/internal/mapstore"
 	"github.com/phoenix1331/cuddio/internal/replace"
 	"github.com/phoenix1331/cuddio/internal/sqlscan"
 	"github.com/phoenix1331/cuddio/internal/textscan"
@@ -23,65 +24,139 @@ const (
 	formatSQL  = "sql"
 )
 
-// cleanFlags are the root command's flags for cleaning input.
-type cleanFlags struct {
+// ioFlags are the flags for what to read and where to write, shared by the
+// root command and restore.
+type ioFlags struct {
 	output  string
 	force   bool
 	format  string
 	dialect string
-	mode    string
 }
 
-// clean reads the file in args, or stdin, and writes the redacted text to
-// stdout or --output.
-func (a *app) clean(args []string, flags cleanFlags) error {
-	path := ""
+// cleanFlags are the root command's flags for cleaning input.
+type cleanFlags struct {
+	ioFlags
+	mode    string
+	mapping bool
+}
+
+// job is one run over an input: the file (empty for stdin), how to read it
+// and where to write the result.
+type job struct {
+	path    string
+	format  string
+	dialect sqlscan.Dialect
+	flags   ioFlags
+}
+
+// newJob checks the flags for args. Nothing is opened yet.
+func newJob(args []string, flags ioFlags) (job, error) {
+	j := job{flags: flags}
 	if len(args) > 0 {
-		path = args[0]
+		j.path = args[0]
 	}
-	format, err := resolveFormat(flags.format, flags.dialect, path)
+	format, err := resolveFormat(flags.format, flags.dialect, j.path)
 	if err != nil {
-		return err
+		return job{}, err
 	}
-	var dialect sqlscan.Dialect
+	j.format = format
 	if flags.dialect != "" {
 		d, ok := sqlscan.ParseDialect(flags.dialect)
 		if !ok {
-			return errors.New("invalid --dialect: want mysql, postgres or sqlite")
+			return job{}, errors.New("invalid --dialect: want mysql, postgres or sqlite")
 		}
-		dialect = d
+		j.dialect = d
+	}
+
+	return j, nil
+}
+
+// errAmbiguous is returned after cleaning with --map when the input held a
+// placeholder that the session also used for a real value.
+var errAmbiguous = errors.New("the input already contains placeholders that this session uses for other values, so restore could not tell them apart; the output was written but the mapping was not stored (run cuddio forget, or clean the original input instead)")
+
+// clean reads the file in args, or stdin, and writes the redacted text to
+// stdout or --output. With --map, the placeholders carry on from the stored
+// session mapping, and the mapping is saved once the output is written.
+func (a *app) clean(args []string, flags cleanFlags) error {
+	j, err := newJob(args, flags.ioFlags)
+	if err != nil {
+		return err
 	}
 	mode := cmp.Or(flags.mode, a.config.Mode)
 	if mode != config.ModePlaceholder && mode != config.ModeFake {
 		return errors.New("invalid --mode: want placeholder or fake")
 	}
+	if flags.mapping && mode == config.ModeFake {
+		return errors.New("--map needs placeholder mode: fake values cannot be restored")
+	}
 
-	redactor, err := a.redactor(mode)
+	detector, err := a.detector()
 	if err != nil {
 		return err
 	}
+	if mode == config.ModeFake {
+		return a.run(j, detect.NewRedactor(detector, replace.NewFakes()))
+	}
+	placeholders, err := replace.NewPlaceholders(a.config.Placeholder.Format)
+	if err != nil {
+		return err
+	}
+	if !flags.mapping {
+		return a.run(j, detect.NewRedactor(detector, placeholders))
+	}
 
-	in, inInfo, err := a.openInput(path)
+	store, err := a.mappingStore()
+	if err != nil {
+		return err
+	}
+	if a.config.Mapping.Disabled {
+		return fmt.Errorf("--map: %w", mapstore.ErrDisabled)
+	}
+	pairs, err := store.Load()
+	if errors.Is(err, mapstore.ErrCorrupt) {
+		fmt.Fprintln(a.env.Stderr, "cuddio: warning: the stored mapping was unreadable and has been deleted; starting a new one")
+		err = nil
+	}
+	if err != nil {
+		return err
+	}
+	placeholders.Seed(pairs)
+
+	if err := a.run(j, detect.NewRedactor(detector, placeholders)); err != nil {
+		return err
+	}
+	if placeholders.Ambiguous() {
+		return errAmbiguous
+	}
+
+	return store.Save(placeholders.Pairs())
+}
+
+// run opens the job's input, passes it through rd as text or SQL, and
+// writes the result to stdout or --output.
+func (a *app) run(j job, rd sqlscan.Redactor) error {
+	in, inInfo, err := a.openInput(j.path)
 	if err != nil {
 		return err
 	}
 	defer in.Close()
 
-	run, err := a.cleaner(format, dialect, in, redactor)
+	write, err := a.writer(j.format, j.dialect, in, rd)
 	if err != nil {
 		return err
 	}
-	if flags.output == "" {
-		return run(a.env.Stdout)
+	if j.flags.output == "" {
+		return write(a.env.Stdout)
 	}
 
-	return writeOutput(flags.output, flags.force, inInfo, run)
+	return writeOutput(j.flags.output, j.flags.force, inInfo, write)
 }
 
-// cleaner returns the function that cleans in for format. For SQL without
-// a dialect, the dialect is detected from the start of the input, which is
-// buffered rather than consumed.
-func (a *app) cleaner(format string, dialect sqlscan.Dialect, in io.Reader, rd *detect.Redactor) (func(io.Writer) error, error) {
+// writer returns the function that passes in through rd for format. For
+// SQL without a dialect, the dialect is detected from the start of the
+// input, which is buffered rather than consumed.
+func (a *app) writer(format string, dialect sqlscan.Dialect, in io.Reader, rd sqlscan.Redactor) (func(io.Writer) error, error) {
 	if format == formatText {
 		return func(w io.Writer) error {
 			return textscan.Clean(w, in, rd.Redact, textscan.Options{})
@@ -106,8 +181,9 @@ func (a *app) cleaner(format string, dialect sqlscan.Dialect, in io.Reader, rd *
 	}, nil
 }
 
-// redactor builds the run's redactor from the rules and config.
-func (a *app) redactor(mode string) (*detect.Redactor, error) {
+// detector builds the run's rule set and allowlist from the rules and
+// config.
+func (a *app) detector() (*detect.Detector, error) {
 	custom, err := config.CustomRules(a.config.Rules.Custom)
 	if err != nil {
 		return nil, err
@@ -124,16 +200,22 @@ func (a *app) redactor(mode string) (*detect.Redactor, error) {
 	if err != nil {
 		return nil, err
 	}
-	detector := detect.NewDetector(selected, allow)
-	if mode == config.ModeFake {
-		return detect.NewRedactor(detector, replace.NewFakes()), nil
-	}
-	placeholders, err := replace.NewPlaceholders(a.config.Placeholder.Format)
-	if err != nil {
-		return nil, err
+
+	return detect.NewDetector(selected, allow), nil
+}
+
+// mappingStore returns the session mapping store, configured from config.
+func (a *app) mappingStore() (*mapstore.Store, error) {
+	if a.env.CacheDir == "" {
+		return nil, errors.New("no user cache directory to keep mappings in")
 	}
 
-	return detect.NewRedactor(detector, placeholders), nil
+	return mapstore.New(mapstore.Options{
+		Dir:      a.env.CacheDir,
+		TTL:      a.config.Mapping.TTL,
+		Disabled: a.config.Mapping.Disabled,
+		Now:      a.env.Now,
+	}), nil
 }
 
 // openInput opens path, or stdin when path is empty. The returned file info

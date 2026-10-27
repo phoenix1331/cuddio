@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"runtime/debug"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -39,6 +40,11 @@ type Env struct {
 	ReadBuildInfo func() (*debug.BuildInfo, bool)
 	// Rules are the built-in rules before config switches any on or off.
 	Rules []detect.Rule
+	// CacheDir is cuddio's folder in the user cache directory, where --map
+	// keeps the session mapping; empty means mappings are unavailable.
+	CacheDir string
+	// Now is the clock for mapping expiry; nil uses time.Now.
+	Now func() time.Time
 }
 
 // app holds the command tree and the state its commands share.
@@ -98,11 +104,10 @@ func newApp(env Env) *app {
 	}
 
 	cmd.PersistentFlags().StringVar(&configPath, "config", "", "use this config file instead of the nearest "+config.ProjectFile)
-	cmd.Flags().StringVarP(&flags.output, "output", "o", "", "write to this file instead of stdout; never the input file")
-	cmd.Flags().BoolVar(&flags.force, "force", false, "replace the --output file if it exists")
-	cmd.Flags().StringVar(&flags.format, "format", "", "input format, text or sql (default: sql for .sql files, otherwise text)")
+	addIOFlags(cmd, &flags.ioFlags)
+	cmd.Flags().BoolVar(&flags.mapping, "map", false, "store the placeholder mapping (owner-only, expires) so restore can put the real values back")
 	cmd.Flags().StringVar(&flags.mode, "mode", "", "placeholder (<EMAIL_1>, reversible) or fake (realistic fake values, so a dump still imports); default from config, else placeholder")
-	cmd.Flags().StringVar(&flags.dialect, "dialect", "", "SQL dialect, mysql, postgres or sqlite (default: detected from the start of the dump); implies --format sql")
+	cmd.AddCommand(a.newRestoreCmd(), a.newForgetCmd())
 	cmd.SetVersionTemplate("cuddio {{.Version}}\n")
 	cmd.SetIn(env.Stdin)
 	cmd.SetOut(env.Stdout)
@@ -110,4 +115,12 @@ func newApp(env Env) *app {
 
 	a.root = cmd
 	return a
+}
+
+// addIOFlags adds the flags for what to read and where to write.
+func addIOFlags(cmd *cobra.Command, flags *ioFlags) {
+	cmd.Flags().StringVarP(&flags.output, "output", "o", "", "write to this file instead of stdout; never the input file")
+	cmd.Flags().BoolVar(&flags.force, "force", false, "replace the --output file if it exists")
+	cmd.Flags().StringVar(&flags.format, "format", "", "input format, text or sql (default: sql for .sql files, otherwise text)")
+	cmd.Flags().StringVar(&flags.dialect, "dialect", "", "SQL dialect, mysql, postgres or sqlite (default: detected from the start of the dump); implies --format sql")
 }

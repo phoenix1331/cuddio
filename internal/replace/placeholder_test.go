@@ -182,3 +182,92 @@ func TestIsToken(t *testing.T) {
 		}
 	}
 }
+
+func TestSeed(t *testing.T) {
+	t.Parallel()
+
+	p := newPlaceholders(t, DefaultFormat)
+	p.Seed([]Pair{
+		{Token: "<EMAIL_1>", Value: "alice@shop.test"},
+		{Token: "<EMAIL_3>", Value: "carys@shop.test"},
+		{Token: "[OLD#1]", Value: "from another format"},
+		{Token: "<EMAIL_9>", Value: "alice@shop.test"},
+		{Token: "<EMAIL_3>", Value: "taken token"},
+	})
+
+	if got := p.Token("EMAIL", "alice@shop.test"); got != "<EMAIL_1>" {
+		t.Errorf("seeded value = %q, want its stored token", got)
+	}
+	if got := p.Token("SECRET", "from another format"); got != "[OLD#1]" {
+		t.Errorf("value with an old-format token = %q, want that token", got)
+	}
+	if got := p.Token("EMAIL", "bob@shop.test"); got != "<EMAIL_4>" {
+		t.Errorf("new value = %q, want numbering to carry on after <EMAIL_3>", got)
+	}
+	if got := p.Token("PHONE", "07700 900123"); got != "<PHONE_1>" {
+		t.Errorf("new label = %q, want <PHONE_1>", got)
+	}
+	want := []Pair{
+		{Token: "<EMAIL_1>", Value: "alice@shop.test"},
+		{Token: "<EMAIL_3>", Value: "carys@shop.test"},
+		{Token: "[OLD#1]", Value: "from another format"},
+		{Token: "<EMAIL_4>", Value: "bob@shop.test"},
+		{Token: "<PHONE_1>", Value: "07700 900123"},
+	}
+	if got := p.Pairs(); !reflect.DeepEqual(got, want) {
+		t.Errorf("Pairs() = %v, want %v", got, want)
+	}
+}
+
+func TestReserve(t *testing.T) {
+	t.Parallel()
+
+	p := newPlaceholders(t, DefaultFormat)
+	p.Reserve("the docs mention <EMAIL_1> and <EMAIL_2>, and <email_3>")
+	p.Reserve("no tokens here")
+	if got := p.Token("EMAIL", "alice@shop.test"); got != "<EMAIL_3>" {
+		t.Errorf("Token() = %q, want reserved numbers skipped", got)
+	}
+	if p.Ambiguous() {
+		t.Error("Ambiguous() = true before any clash")
+	}
+
+	p.Reserve("later the input says <EMAIL_3>")
+	if !p.Ambiguous() {
+		t.Error("Ambiguous() = false after the input repeated a handed-out token")
+	}
+
+	seeded := newPlaceholders(t, DefaultFormat)
+	seeded.Seed([]Pair{{Token: "<EMAIL_1>", Value: "alice@shop.test"}})
+	seeded.Reserve("<EMAIL_1>")
+	if !seeded.Ambiguous() {
+		t.Error("Ambiguous() = false after the input held a seeded token")
+	}
+}
+
+func TestReserveWithoutLiteralPrefix(t *testing.T) {
+	t.Parallel()
+
+	p := newPlaceholders(t, "{label}-{n}")
+	p.Reserve("EMAIL-1 is already in the text")
+	if got := p.Token("EMAIL", "x"); got != "EMAIL-2" {
+		t.Errorf("Token() = %q, want EMAIL-2", got)
+	}
+}
+
+func TestRestorer(t *testing.T) {
+	t.Parallel()
+
+	r := NewRestorer([]Pair{
+		{Token: "EMAIL_1", Value: "alice@shop.test"},
+		{Token: "EMAIL_10", Value: "jen@shop.test"},
+		{Token: "<NAME_1>", Value: "Alice O'Brien"},
+	})
+	got := r.Restore("EMAIL_10 and EMAIL_1 wrote to <NAME_1>; <NAME_2> is unknown")
+	if want := "jen@shop.test and alice@shop.test wrote to Alice O'Brien; <NAME_2> is unknown"; got != want {
+		t.Errorf("Restore() = %q, want %q", got, want)
+	}
+	if got := NewRestorer(nil).Restore("<EMAIL_1>"); got != "<EMAIL_1>" {
+		t.Errorf("empty restorer changed text: %q", got)
+	}
+}

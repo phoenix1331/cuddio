@@ -18,6 +18,12 @@ type Tokens interface {
 	Fit(token string, maxLen int) string
 }
 
+// reserver is implemented by tokens that must never hand out text the
+// input already holds, such as replace.Placeholders.
+type reserver interface {
+	Reserve(s string)
+}
+
 // Redactor applies a detector's matches and whole-value replacements with
 // one set of tokens, so a value gets the same token whether a rule found it
 // in text or it filled a sensitive SQL column.
@@ -33,6 +39,7 @@ func NewRedactor(d *Detector, t Tokens) *Redactor {
 
 // Redact replaces everything the detector finds in s.
 func (r *Redactor) Redact(s string) string {
+	r.reserve(s)
 	return replace.Apply(s, r.detector.Find(s), r.tokens.Token)
 }
 
@@ -41,9 +48,16 @@ func (r *Redactor) Redact(s string) string {
 // tokens from an earlier run, are returned as they are: they hold nothing
 // to hide.
 func (r *Redactor) Whole(label, value string, maxLen int) string {
+	r.reserve(value)
 	if strings.TrimSpace(value) == "" || r.tokens.IsToken(value) || r.detector.allows(value) {
 		return value
 	}
 
 	return r.tokens.Fit(r.tokens.Token(label, value), maxLen)
+}
+
+func (r *Redactor) reserve(s string) {
+	if rv, ok := r.tokens.(reserver); ok {
+		rv.Reserve(s)
+	}
 }

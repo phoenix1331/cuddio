@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/phoenix1331/cuddio/internal/cli"
+	"github.com/phoenix1331/cuddio/internal/mapstore"
 	"github.com/phoenix1331/cuddio/internal/rules"
 )
 
@@ -18,9 +19,11 @@ func main() {
 }
 
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
-	// Without a working or config directory, cuddio skips that config file
+	// Without a working or config directory, cuddio skips that config file;
+	// without a cache directory, --map and restore report an error
 	workDir, _ := os.Getwd()
 	configDir, _ := os.UserConfigDir()
+	cacheDir, _ := mapstore.DefaultDir()
 
 	return cli.Execute(cli.Env{
 		Version:   version,
@@ -30,6 +33,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		Stderr:    stderr,
 		WorkDir:   workDir,
 		ConfigDir: configDir,
+		CacheDir:  cacheDir,
 		Rules:     rules.All(),
 	})
 }

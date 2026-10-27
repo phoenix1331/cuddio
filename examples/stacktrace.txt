@@ -1,0 +1,20 @@
+PDOException: SQLSTATE[08006] [7] connection to server at "db.internal.example.com" (203.0.113.40), port 5432 failed: FATAL:  password authentication failed for user "shop"
+DSN: pgsql:host=db.internal.example.com;port=5432;dbname=shop;user=shop;password=Pg-Passw0rd-2026
+
+#0 /home/alice/projects/shop/vendor/laravel/framework/src/Illuminate/Database/Connectors/Connector.php(65): PDO->__construct('pgsql:host=db.i...', 'shop', Object(SensitiveParameterValue), Array)
+#1 /home/alice/projects/shop/vendor/laravel/framework/src/Illuminate/Database/Connectors/PostgresConnector.php(37): Illuminate\Database\Connectors\Connector->createConnection('pgsql:host=db.i...', Array, Array)
+#2 /home/alice/projects/shop/app/Console/Commands/ImportOrders.php(41): Illuminate\Database\DatabaseManager->connection('pgsql')
+#3 {main}
+
+Caused by: java.sql.SQLException: Access denied for user 'reports'@'198.51.100.9'
+	at com.mysql.cj.jdbc.ConnectionImpl.createNewIO(ConnectionImpl.java:836)
+	at com.example.reports.Exporter.connect(Exporter.java:52)
+	while connecting to mysql://reports:R3ports-Passw0rd@db.example.com:3306/reports
+	config loaded from /Users/bob/work/reports/config/application.yml
+
+Traceback (most recent call last):
+  File "C:\Users\Jane Smith\code\shop-tools\export.py", line 18, in <module>
+    client = connect("postgresql://etl:Etl-Passw0rd-2026@warehouse.example.com:5432/analytics")
+  File "C:\Users\Jane Smith\code\shop-tools\db.py", line 9, in connect
+    raise ConnectionError(f"could not reach {url} as jane.smith@example.com")
+ConnectionError: could not reach warehouse.example.com as jane.smith@example.com

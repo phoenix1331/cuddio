@@ -1,0 +1,11 @@
+[2026-10-27 09:14:02] production.ERROR: SQLSTATE[HY000] [1045] Access denied for user 'shop'@'203.0.113.40' (using password: YES) (Connection: mysql, SQL: select * from `users` where `email` = alice.jones@example.com limit 1) {"userId":42,"exception":"[object] (Illuminate\\Database\\QueryException(code: 1045): SQLSTATE[HY000] [1045] Access denied at /home/deploy/shop/vendor/laravel/framework/src/Illuminate/Database/Connection.php:825)
+[stacktrace]
+#0 /home/deploy/shop/vendor/laravel/framework/src/Illuminate/Database/Connection.php(779): Illuminate\\Database\\Connection->runQueryCallback('select * from `...', Array, Object(Closure))
+#1 /home/deploy/shop/app/Http/Controllers/Auth/LoginController.php(58): Illuminate\\Database\\Connection->select('select * from `...', Array)
+#2 {main}
+"}
+[2026-10-27 09:15:41] production.INFO: Checkout started {"user_id":42,"email":"bob.smith@example.com","phone":"07700 900123","ip":"198.51.100.24","card":"4242 4242 4242 4242","postcode":"CF10 1AA"}
+[2026-10-27 09:15:43] production.WARNING: Payment webhook rejected {"headers":{"authorization":"Bearer 9f8Kq2LmXz7Rt4VbN1cWp6Hs3Jd5Ya0E","cookie":"laravel_session=eyJpdiI6IkZha2VJdiIsInZhbHVlIjoiRmFrZVZhbHVlIn0","x-forwarded-for":"198.51.100.24"},"payload":{"customer":"bob.smith@example.com","api_key":"Lq7Vn2Rt8Kw3Zx5Pm9Hc4Jd6"}}
+[2026-10-27 09:16:05] production.ERROR: Connection could not be established with host "smtp.example.com:587": smtp://mailer:Sm7pPassw0rd2026@smtp.example.com:587 {"to":"carys.llyr@example.com"}
+[2026-10-27 09:17:12] production.INFO: Password reset requested {"email":"alice.jones@example.com","token":"https://shop.example.com/reset-password/7c1e9a4f3b2d?email=alice.jones%40example.com","ip":"2001:db8:85a3::8a2e:370:7334"}
+[2026-10-27 09:18:30] production.DEBUG: Calling partner API {"url":"https://api.partner.example.com/v2/orders?api_key=Hs3Jd5Ya0E9f8Kq2LmXz7Rt4&page=2","response_ms":184}

@@ -6,8 +6,9 @@ import (
 
 // defaultColumns maps the column names sensitive in every table to the
 // label their values get. Each also matches as a suffix after "_"
-// (billing_email, smtp_password), except name, which would take in
-// product_name and file_name.
+// (billing_email, smtp_password, customer_first_name), except name itself,
+// which would take in product_name and file_name; common person-name
+// columns are listed instead.
 func defaultColumns() map[string]string {
 	return map[string]string{
 		"email":                     "EMAIL",
@@ -17,6 +18,12 @@ func defaultColumns() map[string]string {
 		"first_name":                "NAME",
 		"last_name":                 "NAME",
 		"name":                      "NAME",
+		"full_name":                 "NAME",
+		"billing_name":              "NAME",
+		"shipping_name":             "NAME",
+		"customer_name":             "NAME",
+		"contact_name":              "NAME",
+		"display_name":              "NAME",
 		"address":                   "ADDRESS",
 		"postcode":                  "POSTCODE",
 		"dob":                       "DOB",
@@ -31,8 +38,11 @@ func defaultColumns() map[string]string {
 	}
 }
 
-// exactOnly lists default columns that never match as a suffix.
-const exactOnly = "name"
+// exactOnly reports whether a default column must match exactly: "name",
+// since a suffix match on _name would take in product_name.
+func exactOnly(name string) bool {
+	return name == "name"
+}
 
 // defaultTables maps table names to columns sensitive in that table only:
 // Laravel's session IDs and payloads are live credentials.
@@ -87,7 +97,7 @@ func (c *Columns) Label(table, column string) (string, bool) {
 
 	best := ""
 	for name := range c.defaults {
-		if name != exactOnly && len(name) > len(best) && strings.HasSuffix(column, "_"+name) {
+		if !exactOnly(name) && len(name) > len(best) && strings.HasSuffix(column, "_"+name) {
 			best = name
 		}
 	}

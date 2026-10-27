@@ -112,7 +112,7 @@ CREATE TABLE `personal_access_tokens` (
 
 LOCK TABLES `personal_access_tokens` WRITE;
 /*!40000 ALTER TABLE `personal_access_tokens` DISABLE KEYS */;
-INSERT INTO `personal_access_tokens` VALUES (1,'App\\Models\\User',1,'Alex','79031byalbf4591339740lgollz3600235417yuqwza6132071482qomtvs58689','[\"*\"]','2026-10-20 11:02:33',NULL,'2026-10-01 09:00:00','2026-10-20 11:02:33'),(2,'App\\Models\\User',2,'Sam Davies','jxegxh6255122542rqhpbp2624626614mpjdwz0735015359dttyzv5107221024','[\"orders:read\"]',NULL,'2027-01-01 00:00:00','2026-10-02 10:00:00','2026-10-02 10:00:00');
+INSERT INTO `personal_access_tokens` VALUES (1,'App\\Models\\User',1,'Jordan','79031byalbf4591339740lgollz3600235417yuqwza6132071482qomtvs58689','[\"*\"]','2026-10-20 11:02:33',NULL,'2026-10-01 09:00:00','2026-10-20 11:02:33'),(2,'App\\Models\\User',2,'Taylor Morgan','jxegxh6255122542rqhpbp2624626614mpjdwz0735015359dttyzv5107221024','[\"orders:read\"]',NULL,'2027-01-01 00:00:00','2026-10-02 10:00:00','2026-10-02 10:00:00');
 /*!40000 ALTER TABLE `personal_access_tokens` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -174,7 +174,7 @@ CREATE TABLE `users` (
 
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
-INSERT INTO `users` VALUES (1,'Alex Smith','user1@example.invalid','2026-10-01 09:00:00','REDACTED','Sw3Gf4XwDf2Jy1Um1Jz5Kd6Hh9Sn4Qj6Sp8Fj1OqVo5Tn8Qe0Ie9Xi9Uc3Gl',_binary 0x89504E470D0A1A0A,'2026-10-01 09:00:00','2026-10-01 09:00:00'),(2,'Sam Davies','user2@example.invalid',NULL,'REDACTED','kMn2Hb4Xd4Hr3Go9Ew0Tw0Vc5Zm5Qm0AqWc2Gl8Gw8Xb7Kf4Ba8Ot6Jx3Xq6',NULL,'2026-10-02 10:00:00','2026-10-05 07:00:00'),(3,'Jordan Roberts','user3@example.invalid',NULL,'REDACTED',NULL,NULL,'2026-10-03 12:00:00','2026-10-03 12:00:00');
+INSERT INTO `users` VALUES (1,'Alex Smith','user1@example.invalid','2026-10-01 09:00:00','REDACTED','Sw3Gf4XwDf2Jy1Um1Jz5Kd6Hh9Sn4Qj6Sp8Fj1OqVo5Tn8Qe0Ie9Xi9Uc3Gl',_binary 0x89504E470D0A1A0A,'2026-10-01 09:00:00','2026-10-01 09:00:00'),(2,'Sam Davies','user2@example.invalid',NULL,'REDACTED','kMn2Hb4Xd4Hr3Go9Ew0Tw0Vc5Zm5Qm0AqWc2Gl8Gw8Xb7Kf4Ba8Ot6Jx3Xq6',NULL,'2026-10-02 10:00:00','2026-10-05 07:00:00'),(3,'Morgan Owen','user3@example.invalid',NULL,'REDACTED',NULL,NULL,'2026-10-03 12:00:00','2026-10-03 12:00:00');
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;

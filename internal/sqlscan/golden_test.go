@@ -53,12 +53,6 @@ func newRedactor(tb testing.TB, det *detect.Detector) *detect.Redactor {
 	return detect.NewRedactor(det, p)
 }
 
-// goldenColumns adds the one Laravel column the defaults miss in the
-// fixture, the way a project's .cuddio.yaml would.
-func goldenColumns() *sqlscan.Columns {
-	return sqlscan.NewColumns(nil, map[string][]string{"orders": {"billing_name"}})
-}
-
 // survivors are fixture values that must not appear in cleaned output.
 func survivors() []string {
 	return []string{
@@ -105,7 +99,7 @@ func TestGolden(t *testing.T) {
 				if mode == "fake" {
 					rd, golden = detect.NewRedactor(det, replace.NewFakes()), filepath.Join("testdata", name+".fake.golden")
 				}
-				got := cleanDump(t, d, rd, goldenColumns(), sqltest.Fixture(t, name))
+				got := cleanDump(t, d, rd, sqlscan.NewColumns(nil, nil), sqltest.Fixture(t, name))
 
 				if *update {
 					if err := os.WriteFile(golden, []byte(got), 0o600); err != nil {
@@ -139,7 +133,7 @@ func TestGolden(t *testing.T) {
 func TestFakeSQLiteJoinsOnEmail(t *testing.T) {
 	t.Parallel()
 
-	got := cleanDump(t, sqltest.SQLite, detect.NewRedactor(newDetector(t), replace.NewFakes()), goldenColumns(), sqltest.Fixture(t, "sqlite.sql"))
+	got := cleanDump(t, sqltest.SQLite, detect.NewRedactor(newDetector(t), replace.NewFakes()), sqlscan.NewColumns(nil, nil), sqltest.Fixture(t, "sqlite.sql"))
 	db, err := sqltest.OpenSQLite(got)
 	if err != nil {
 		t.Fatal(err)

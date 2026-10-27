@@ -204,8 +204,8 @@ user2@example.invalid	$4r$05$Cl8kM7nUs1Iv0lDf5Ej8IeX9jN5tZ2gK1rM3iU3hQ7fM2tN6aW2
 --
 
 COPY public.personal_access_tokens (id, tokenable_type, tokenable_id, name, token, abilities, last_used_at, expires_at, created_at, updated_at) FROM stdin;
-1	App\\Models\\User	1	Alex	79031byalbf4591339740lgollz3600235417yuqwza6132071482qomtvs58689	["*"]	2026-10-20 11:02:33	\N	2026-10-01 09:00:00	2026-10-20 11:02:33
-2	App\\Models\\User	2	Sam Davies	jxegxh6255122542rqhpbp2624626614mpjdwz0735015359dttyzv5107221024	["orders:read"]	\N	2027-01-01 00:00:00	2026-10-02 10:00:00	2026-10-02 10:00:00
+1	App\\Models\\User	1	Jordan	79031byalbf4591339740lgollz3600235417yuqwza6132071482qomtvs58689	["*"]	2026-10-20 11:02:33	\N	2026-10-01 09:00:00	2026-10-20 11:02:33
+2	App\\Models\\User	2	Taylor Morgan	jxegxh6255122542rqhpbp2624626614mpjdwz0735015359dttyzv5107221024	["orders:read"]	\N	2027-01-01 00:00:00	2026-10-02 10:00:00	2026-10-02 10:00:00
 \.
 
 
@@ -226,7 +226,7 @@ f1Hm5Ch0Ca7Qm6Xz6Oz2VhEi4Rv4Fu1Ac0Hg0Wz2	\N	2001:db8::3	curl/8.5.0	HMzeVotiLpS3D
 COPY public.users (id, name, email, email_verified_at, password, remember_token, avatar, created_at, updated_at) FROM stdin;
 1	Alex Smith	user1@example.invalid	2026-10-01 09:00:00	REDACTED	Sw3Gf4XwDf2Jy1Um1Jz5Kd6Hh9Sn4Qj6Sp8Fj1OqVo5Tn8Qe0Ie9Xi9Uc3Gl	\\x89504e470d0a1a0a	2026-10-01 09:00:00	2026-10-01 09:00:00
 2	Sam Davies	user2@example.invalid	\N	REDACTED	kMn2Hb4Xd4Hr3Go9Ew0Tw0Vc5Zm5Qm0AqWc2Gl8Gw8Xb7Kf4Ba8Ot6Jx3Xq6	\N	2026-10-02 10:00:00	2026-10-05 07:00:00
-3	Jordan Roberts	user3@example.invalid	\N	REDACTED	\N	\N	2026-10-03 12:00:00	2026-10-03 12:00:00
+3	Morgan Owen	user3@example.invalid	\N	REDACTED	\N	\N	2026-10-03 12:00:00	2026-10-03 12:00:00
 \.
 
 

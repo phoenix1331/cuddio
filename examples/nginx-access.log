@@ -1,0 +1,6 @@
+198.51.100.24 - - [27/Oct/2026:09:15:40 +0000] "GET /api/orders?access_token=Zx81Lm2Qp9Rt7Vb3Nc6Kd4Hs HTTP/1.1" 200 512 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15"
+198.51.100.24 - - [27/Oct/2026:09:15:41 +0000] "POST /checkout HTTP/1.1" 302 0 "https://shop.example.com/basket" "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15"
+203.0.113.77 - - [27/Oct/2026:09:16:02 +0000] "GET /login?email=alice.jones%40example.com&redirect=/account HTTP/1.1" 200 3104 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
+2001:db8:85a3::8a2e:370:7334 - - [27/Oct/2026:09:17:12 +0000] "GET /account/orders?email=bob.smith@example.com HTTP/2.0" 200 2048 "-" "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148"
+192.0.2.10 - - [27/Oct/2026:09:18:00 +0000] "GET /webhooks/payments?signature=Kd4Hs3Jd5Ya0E9f8Kq2LmXz7&id=evt_1001 HTTP/1.1" 401 64 "-" "PaymentsBot/2.1"
+127.0.0.1 - - [27/Oct/2026:09:18:05 +0000] "GET /health HTTP/1.1" 200 2 "-" "kube-probe/1.31"

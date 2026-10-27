@@ -52,7 +52,7 @@ CREATE TABLE `orders` (
 
 LOCK TABLES `orders` WRITE;
 /*!40000 ALTER TABLE `orders` DISABLE KEYS */;
-INSERT INTO `orders` VALUES (1,1,'SO-1001','paid',42.50,'<BILLING_NAME_1>','<EMAIL_1>','<PHONE_1>','<ADDRESS_1>','<POSTCODE_1>','4242','pi_f7Gh9Jk2Lm4Np6Qr8St0Uv1W','Customer said: \"leave with neighbour\"','{\"gateway\": \"stripe\", \"secret\": \"<SECRET_1>\"}','2026-10-01 09:15:00','2026-10-01 09:16:02'),(2,2,'SO-1002','refunded',19.99,'<BILLING_NAME_2>','<EMAIL_2>','<PHONE_2>','<ADDRESS_2>','<POSTCODE_2>',NULL,'pi_Qr8St0Uv1WxAb3Cd5Ef7Gh9J','Refund to card <CARD_1>, called from <IP_1>','{\"gateway\": \"stripe\"}','2026-10-02 14:00:00','2026-10-03 08:30:00'),(3,1,'SO-1003','pending',7.00,'<BILLING_NAME_1>','<EMAIL_1>',NULL,NULL,NULL,NULL,NULL,'',NULL,'2026-10-04 18:45:10',NULL);
+INSERT INTO `orders` VALUES (1,1,'SO-1001','paid',42.50,'<NAME_1>','<EMAIL_1>','<PHONE_1>','<ADDRESS_1>','<POSTCODE_1>','4242','pi_f7Gh9Jk2Lm4Np6Qr8St0Uv1W','Customer said: \"leave with neighbour\"','{\"gateway\": \"stripe\", \"secret\": \"<SECRET_1>\"}','2026-10-01 09:15:00','2026-10-01 09:16:02'),(2,2,'SO-1002','refunded',19.99,'<NAME_2>','<EMAIL_2>','<PHONE_2>','<ADDRESS_2>','<POSTCODE_2>',NULL,'pi_Qr8St0Uv1WxAb3Cd5Ef7Gh9J','Refund to card <CARD_1>, called from <IP_1>','{\"gateway\": \"stripe\"}','2026-10-02 14:00:00','2026-10-03 08:30:00'),(3,1,'SO-1003','pending',7.00,'<NAME_1>','<EMAIL_1>',NULL,NULL,NULL,NULL,NULL,'',NULL,'2026-10-04 18:45:10',NULL);
 /*!40000 ALTER TABLE `orders` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -112,7 +112,7 @@ CREATE TABLE `personal_access_tokens` (
 
 LOCK TABLES `personal_access_tokens` WRITE;
 /*!40000 ALTER TABLE `personal_access_tokens` DISABLE KEYS */;
-INSERT INTO `personal_access_tokens` VALUES (1,'App\\Models\\User',1,'<NAME_1>','<TOKEN_2>','[\"*\"]','2026-10-20 11:02:33',NULL,'2026-10-01 09:00:00','2026-10-20 11:02:33'),(2,'App\\Models\\User',2,'<NAME_2>','<TOKEN_3>','[\"orders:read\"]',NULL,'2027-01-01 00:00:00','2026-10-02 10:00:00','2026-10-02 10:00:00');
+INSERT INTO `personal_access_tokens` VALUES (1,'App\\Models\\User',1,'<NAME_3>','<TOKEN_2>','[\"*\"]','2026-10-20 11:02:33',NULL,'2026-10-01 09:00:00','2026-10-20 11:02:33'),(2,'App\\Models\\User',2,'<NAME_4>','<TOKEN_3>','[\"orders:read\"]',NULL,'2027-01-01 00:00:00','2026-10-02 10:00:00','2026-10-02 10:00:00');
 /*!40000 ALTER TABLE `personal_access_tokens` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -174,7 +174,7 @@ CREATE TABLE `users` (
 
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
-INSERT INTO `users` VALUES (1,'<BILLING_NAME_1>','<EMAIL_1>','2026-10-01 09:00:00','<PASSWORD_1>','<TOKEN_4>',_binary 0x89504E470D0A1A0A,'2026-10-01 09:00:00','2026-10-01 09:00:00'),(2,'<BILLING_NAME_2>','<EMAIL_2>',NULL,'<PASSWORD_2>','<TOKEN_5>',NULL,'2026-10-02 10:00:00','2026-10-05 07:00:00'),(3,'<NAME_3>','<EMAIL_3>',NULL,'<PASSWORD_3>',NULL,NULL,'2026-10-03 12:00:00','2026-10-03 12:00:00');
+INSERT INTO `users` VALUES (1,'<NAME_1>','<EMAIL_1>','2026-10-01 09:00:00','<PASSWORD_1>','<TOKEN_4>',_binary 0x89504E470D0A1A0A,'2026-10-01 09:00:00','2026-10-01 09:00:00'),(2,'<NAME_2>','<EMAIL_2>',NULL,'<PASSWORD_2>','<TOKEN_5>',NULL,'2026-10-02 10:00:00','2026-10-05 07:00:00'),(3,'<NAME_5>','<EMAIL_3>',NULL,'<PASSWORD_3>',NULL,NULL,'2026-10-03 12:00:00','2026-10-03 12:00:00');
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;

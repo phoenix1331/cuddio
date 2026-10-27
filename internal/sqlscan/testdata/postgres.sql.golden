@@ -184,9 +184,9 @@ ALTER TABLE ONLY public.users ALTER COLUMN id SET DEFAULT nextval('public.users_
 --
 
 COPY public.orders (id, user_id, number, status, total, billing_name, billing_email, billing_phone, shipping_address, shipping_postcode, card_last4, payment_intent, notes, meta, created_at, updated_at) FROM stdin;
-1	1	SO-1001	paid	42.50	<BILLING_NAME_1>	<EMAIL_1>	<PHONE_1>	<ADDRESS_1>	<POSTCODE_1>	4242	pi_f7Gh9Jk2Lm4Np6Qr8St0Uv1W	Customer said: "leave with neighbour"	{"gateway": "stripe", "secret": "<SECRET_1>"}	2026-10-01 09:15:00	2026-10-01 09:16:02
-2	2	SO-1002	refunded	19.99	<BILLING_NAME_2>	<EMAIL_2>	<PHONE_2>	<ADDRESS_2>	<POSTCODE_2>	\N	pi_Qr8St0Uv1WxAb3Cd5Ef7Gh9J	Refund to card <CARD_1>,\tcalled from <IP_1>	{"gateway": "stripe"}	2026-10-02 14:00:00	2026-10-03 08:30:00
-3	1	SO-1003	pending	7.00	<BILLING_NAME_1>	<EMAIL_1>	\N	\N	\N	\N	\N		\N	2026-10-04 18:45:10	\N
+1	1	SO-1001	paid	42.50	<NAME_1>	<EMAIL_1>	<PHONE_1>	<ADDRESS_1>	<POSTCODE_1>	4242	pi_f7Gh9Jk2Lm4Np6Qr8St0Uv1W	Customer said: "leave with neighbour"	{"gateway": "stripe", "secret": "<SECRET_1>"}	2026-10-01 09:15:00	2026-10-01 09:16:02
+2	2	SO-1002	refunded	19.99	<NAME_2>	<EMAIL_2>	<PHONE_2>	<ADDRESS_2>	<POSTCODE_2>	\N	pi_Qr8St0Uv1WxAb3Cd5Ef7Gh9J	Refund to card <CARD_1>,\tcalled from <IP_1>	{"gateway": "stripe"}	2026-10-02 14:00:00	2026-10-03 08:30:00
+3	1	SO-1003	pending	7.00	<NAME_1>	<EMAIL_1>	\N	\N	\N	\N	\N		\N	2026-10-04 18:45:10	\N
 \.
 
 
@@ -204,8 +204,8 @@ COPY public.password_reset_tokens (email, token, created_at) FROM stdin;
 --
 
 COPY public.personal_access_tokens (id, tokenable_type, tokenable_id, name, token, abilities, last_used_at, expires_at, created_at, updated_at) FROM stdin;
-1	App\\Models\\User	1	<NAME_1>	<TOKEN_2>	["*"]	2026-10-20 11:02:33	\N	2026-10-01 09:00:00	2026-10-20 11:02:33
-2	App\\Models\\User	2	<NAME_2>	<TOKEN_3>	["orders:read"]	\N	2027-01-01 00:00:00	2026-10-02 10:00:00	2026-10-02 10:00:00
+1	App\\Models\\User	1	<NAME_3>	<TOKEN_2>	["*"]	2026-10-20 11:02:33	\N	2026-10-01 09:00:00	2026-10-20 11:02:33
+2	App\\Models\\User	2	<NAME_4>	<TOKEN_3>	["orders:read"]	\N	2027-01-01 00:00:00	2026-10-02 10:00:00	2026-10-02 10:00:00
 \.
 
 
@@ -224,9 +224,9 @@ COPY public.sessions (id, user_id, ip_address, user_agent, payload, last_activit
 --
 
 COPY public.users (id, name, email, email_verified_at, password, remember_token, avatar, created_at, updated_at) FROM stdin;
-1	<BILLING_NAME_1>	<EMAIL_1>	2026-10-01 09:00:00	<PASSWORD_1>	<TOKEN_4>	\\x89504e470d0a1a0a	2026-10-01 09:00:00	2026-10-01 09:00:00
-2	<BILLING_NAME_2>	<EMAIL_2>	\N	<PASSWORD_2>	<TOKEN_5>	\N	2026-10-02 10:00:00	2026-10-05 07:00:00
-3	<NAME_3>	<EMAIL_3>	\N	<PASSWORD_3>	\N	\N	2026-10-03 12:00:00	2026-10-03 12:00:00
+1	<NAME_1>	<EMAIL_1>	2026-10-01 09:00:00	<PASSWORD_1>	<TOKEN_4>	\\x89504e470d0a1a0a	2026-10-01 09:00:00	2026-10-01 09:00:00
+2	<NAME_2>	<EMAIL_2>	\N	<PASSWORD_2>	<TOKEN_5>	\N	2026-10-02 10:00:00	2026-10-05 07:00:00
+3	<NAME_5>	<EMAIL_3>	\N	<PASSWORD_3>	\N	\N	2026-10-03 12:00:00	2026-10-03 12:00:00
 \.
 
 

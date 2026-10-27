@@ -45,10 +45,11 @@ func (a *app) clean(args []string, flags cleanFlags) error {
 		return errors.New("fake mode is not supported yet")
 	}
 
-	redact, err := a.redactor()
+	redactor, err := a.redactor()
 	if err != nil {
 		return err
 	}
+	redact := redactor.Redact
 
 	in, inInfo, err := a.openInput(path)
 	if err != nil {
@@ -65,8 +66,8 @@ func (a *app) clean(args []string, flags cleanFlags) error {
 	})
 }
 
-// redactor builds the run's redaction function from the rules and config.
-func (a *app) redactor() (func(string) string, error) {
+// redactor builds the run's redactor from the rules and config.
+func (a *app) redactor() (*detect.Redactor, error) {
 	custom, err := config.CustomRules(a.config.Rules.Custom)
 	if err != nil {
 		return nil, err
@@ -88,10 +89,7 @@ func (a *app) redactor() (func(string) string, error) {
 		return nil, err
 	}
 
-	detector := detect.NewDetector(selected, allow)
-	return func(s string) string {
-		return placeholders.Replace(s, detector.Find(s))
-	}, nil
+	return detect.NewRedactor(detect.NewDetector(selected, allow), placeholders), nil
 }
 
 // openInput opens path, or stdin when path is empty. The returned file info

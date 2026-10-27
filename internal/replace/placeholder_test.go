@@ -156,3 +156,29 @@ func TestReplaceNumbersInReadingOrder(t *testing.T) {
 		t.Errorf("Replace() = %q, want %q", got, want)
 	}
 }
+
+func TestIsToken(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		format, s string
+		want      bool
+	}{
+		{DefaultFormat, "<EMAIL_1>", true},
+		{DefaultFormat, "<GITLAB_PAT_12>", true},
+		{DefaultFormat, "<1PASSWORD_SECRET_KEY_3>", true},
+		{DefaultFormat, "<EMAIL_0>", false},
+		{DefaultFormat, "<email_1>", false},
+		{DefaultFormat, "x <EMAIL_1>", false},
+		{DefaultFormat, "<EMAIL_1>x", false},
+		{DefaultFormat, "", false},
+		{"[[{label}.{n}]]", "[[EMAIL.2]]", true},
+		{"[[{label}.{n}]]", "[[EMAIL_2]]", false},
+		{"{n}-{label}", "7-IP", true},
+	}
+	for _, tt := range tests {
+		if got := newPlaceholders(t, tt.format).IsToken(tt.s); got != tt.want {
+			t.Errorf("format %q: IsToken(%q) = %v, want %v", tt.format, tt.s, got, tt.want)
+		}
+	}
+}

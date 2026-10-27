@@ -50,7 +50,7 @@ func (d *Detector) Find(s string) []replace.Match {
 		for _, loc := range rule.Pattern.FindAllStringSubmatchIndex(s, -1) {
 			start, end := span(loc, d.groups[priority])
 			value := s[start:end]
-			if value == "" || !rule.Accepts(value) || (d.allow != nil && d.allow.Allows(value)) {
+			if value == "" || !rule.Accepts(value) || d.allows(value) {
 				continue
 			}
 			matches = append(matches, replace.Match{Start: start, End: end, Label: rule.Label, Priority: priority})
@@ -58,6 +58,11 @@ func (d *Detector) Find(s string) []replace.Match {
 	}
 
 	return matches
+}
+
+// allows reports whether the allowlist permits value.
+func (d *Detector) allows(value string) bool {
+	return d.allow != nil && d.allow.Allows(value)
 }
 
 // span returns the first value group that took part in the match, or the

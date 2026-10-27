@@ -15,12 +15,12 @@ First of a planned set of Welsh-named Go tools sharing one visual style for READ
 | `main.go` | `main` package at the root so `go install github.com/phoenix1331/cuddio@latest` works; wiring only, holds the ldflags `version` |
 | `network_test.go` | No-network checks (build imports, linked binary symbols) and the test-only package guard |
 | `internal/cli/` | Cobra commands; `Env` carries args, stdin, stdout, stderr, build info and rules so commands run in-process in tests; root command cleans stdin or `FILE` to stdout or `-o` |
-| `internal/detect/` | Rule type, registry with enable/disable selection, Luhn and entropy validators, allowlist (built-in values plus config values and patterns), `Detector` turning rules into `replace.Match` spans |
+| `internal/detect/` | Rule type, registry with enable/disable selection, Luhn and entropy validators, allowlist (built-in values plus config values and patterns), `Detector` turning rules into `replace.Match` spans, `Redactor` (pattern redaction and whole-value tokens over one `Placeholders`) |
 | `internal/rules/` | `Builtin()` (`secrets.go`, `pii.go`), `Gitleaks()` (`gitleaks.go` over generated `gitleaks_gen.go`), and `All()`, the set `main` passes in |
 | `tools/gitleaksgen/` | Nested module: turns gitleaks' `config/gitleaks.toml` into `internal/rules/gitleaks_gen.go`; run by `scripts/update-gitleaks-rules.sh`, tested by `scripts/check.sh` |
 | `internal/textscan/` | Streaming line scanner for plain text and logs; buffers PEM blocks, keeps line endings, caps line length; golden fixtures in `testdata/text/`, fuzz corpus in `testdata/fuzz/` |
 | `internal/sqltest/` | Test support only: Laravel-shaped fixture dumps (`testdata/sql/`, embedded), `WriteDump` for large generated dumps, `Check` for MySQL, PostgreSQL and SQLite validity, `OpenSQLite` |
-| `internal/sqlscan/` | Streaming MySQL tokeniser (`NewMySQL`, `Token`, `Value`); statements, column tracking and other dialects planned |
+| `internal/sqlscan/` | Streaming MySQL tokeniser (`NewMySQL`, `Token`, `Value`); `CleanMySQL` with statement and column tracking; `Columns` (sensitive column names and labels); golden output in `testdata/`; other dialects planned |
 | `internal/replace/` | Placeholder tokens consistent within a run, overlap resolution; fake values (planned) |
 | `internal/mapstore/` | Local mapping store, `0600` files with TTL (planned) |
 | `internal/clipboard/` | Clipboard access including WSL (planned) |
@@ -109,7 +109,14 @@ First of a planned set of Welsh-named Go tools sharing one visual style for READ
 | Charset introducers (`_binary`, `_utf8mb4`) are recorded on the next literal (`Token.Charset`); `N'...'` gives `N` | Lets column handling tell binary values from text without a second pass |
 | Unterminated strings, identifiers and comments at end of input are tokens marked `Unterminated`, not errors | A truncated dump still streams; the caller decides, and redacting the open value is the safe choice |
 | SQL memory test forces a GC every 512 KiB and checks peak live heap (54 KiB growth over 10 MiB) | Total heap size mostly measures garbage between collections, which flaked at Go's 4 MiB minimum GC target |
-| `.sql` input or `--format sql` errors until the SQL scanner exists | Treating a dump as plain text would change behaviour silently once SQL support lands |
+| `.sql` input or `--format sql` errors until dialect detection exists | Treating a dump as plain text would change behaviour silently once SQL support lands; a PostgreSQL dump read as MySQL would pass `COPY` rows through unredacted |
+| SQL statement tracking is a small state machine over tokens, not a parser: `CREATE TABLE` definitions and `INSERT`/`REPLACE` column lists and `VALUES` rows; anything else gets pattern rules only | Bounded memory (only column names per table are kept); a statement cuddio does not understand still has every string value checked |
+| Whole-value redaction applies to literals at row depth 1 (strings, numbers, hex, bit); `NULL`, function arguments and `INSERT ... SET`/`SELECT` values get pattern rules only | A nested value is an expression, not the column's value; `NULL` and blanks reveal nothing |
+| Default sensitive columns: the brief's list plus `token`, `secret`, `two_factor_recovery_codes`, and `sessions.id`/`payload`; every default except `name` also matches as an `_` suffix (`billing_email`); configured names match exactly | Laravel stores live credentials in sessions and token tables; `_name` would catch `product_name` and `file_name`, so `billing_name` needs config |
+| A default column's label is its kind (`billing_email` gives `EMAIL`, longest suffix wins); a configured column's label is its name in upper case | Matches pattern rule labels, so the AI sees one kind of token per kind of value |
+| `Whole` skips blank, allowlisted and already-tokenised values; tokens keyed by value across pattern and column redaction | Cleaning cleaned output is a no-op; a value gets one token wherever it appears, so the first table to show it picks its label |
+| Changed values are written back with mysqldump's escaping, keeping the quote character and `N` or `_charset` prefix; changed numbers, hex and bit literals become quoted strings | Output stays valid SQL (TiDB-checked in golden and fuzz tests); placeholder mode does not promise column types, fake mode will |
+| Comments go through pattern rules; a comment a placeholder would break (line break in `--`, `*/` in `/* */`) becomes `/**/` | Nothing in a comment leaks, and a custom placeholder format can never turn comment text into SQL |
 
 ## Dependencies and constraints
 

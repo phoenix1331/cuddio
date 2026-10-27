@@ -4,6 +4,7 @@ package replace
 
 import (
 	"errors"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -22,6 +23,7 @@ type Pair struct {
 // appearance. Use one per run; it is not safe for concurrent use.
 type Placeholders struct {
 	format  string
+	token   *regexp.Regexp
 	byValue map[string]string
 	counts  map[string]int
 	pairs   []Pair
@@ -34,7 +36,20 @@ func NewPlaceholders(format string) (*Placeholders, error) {
 		return nil, errors.New("placeholder format must contain {label} and {n}")
 	}
 
-	return &Placeholders{format: format, byValue: map[string]string{}, counts: map[string]int{}}, nil
+	return &Placeholders{format: format, token: tokenPattern(format), byValue: map[string]string{}, counts: map[string]int{}}, nil
+}
+
+// tokenPattern matches a whole token in format: {label} as uppercase
+// letters, digits and underscores, {n} as a number from 1.
+func tokenPattern(format string) *regexp.Regexp {
+	fields := strings.NewReplacer(regexp.QuoteMeta("{label}"), `[A-Z0-9_]+`, regexp.QuoteMeta("{n}"), `[1-9][0-9]*`)
+	return regexp.MustCompile("^" + fields.Replace(regexp.QuoteMeta(format)) + "$")
+}
+
+// IsToken reports whether s is a whole token in this format, such as one
+// written by an earlier run, so cleaning cleaned output leaves it alone.
+func (p *Placeholders) IsToken(s string) bool {
+	return p.token.MatchString(s)
 }
 
 // Token returns the placeholder for value. A value seen before keeps its

@@ -35,10 +35,13 @@ placeholder from the stored session mapping with the value it stands for.
 Placeholders cuddio did not hand out are left as they are. SQL input is
 re-escaped for its dialect, so a restored dump is still valid SQL.
 
+With --clip, restore works on the clipboard in place. On Windows and WSL
+the restored text is marked so clipboard history and cloud sync skip it.
+
 The mapping comes from cleaning with --map, and expires (default: 1 hour).`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) == 0 && isTerminal(a.env.Stdin) {
+			if len(args) == 0 && !flags.clip && isTerminal(a.env.Stdin) {
 				return cmd.Help()
 			}
 			return a.restore(args, flags)
@@ -55,6 +58,8 @@ func (a *app) restore(args []string, flags ioFlags) error {
 	if err != nil {
 		return err
 	}
+	j.private = true
+	j.changed, j.unchanged = "clipboard restored", "no placeholders from the stored mapping on the clipboard; left as it was"
 	store, err := a.mappingStore()
 	if err != nil {
 		return err

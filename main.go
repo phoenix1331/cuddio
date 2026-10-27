@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/phoenix1331/cuddio/internal/cli"
+	"github.com/phoenix1331/cuddio/internal/clipboard"
 	"github.com/phoenix1331/cuddio/internal/mapstore"
 	"github.com/phoenix1331/cuddio/internal/rules"
 )
@@ -34,6 +35,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		WorkDir:   workDir,
 		ConfigDir: configDir,
 		CacheDir:  cacheDir,
+		Clipboard: clipboard.New(clipboard.HostFromOS(), clipboard.Exec),
 		Rules:     rules.All(),
 	})
 }

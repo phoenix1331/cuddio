@@ -31,6 +31,7 @@ type ioFlags struct {
 	force   bool
 	format  string
 	dialect string
+	clip    bool
 }
 
 // cleanFlags are the root command's flags for cleaning input.
@@ -47,6 +48,11 @@ type job struct {
 	format  string
 	dialect sqlscan.Dialect
 	flags   ioFlags
+	// private keeps text written back to the clipboard out of clipboard
+	// history, for restore, whose output holds real values.
+	private bool
+	// changed and unchanged report a --clip run that wrote nothing else.
+	changed, unchanged string
 }
 
 // newJob checks the flags for args. Nothing is opened yet.
@@ -54,6 +60,9 @@ func newJob(args []string, flags ioFlags) (job, error) {
 	j := job{flags: flags}
 	if len(args) > 0 {
 		j.path = args[0]
+	}
+	if flags.clip && j.path != "" {
+		return job{}, errors.New("--clip reads the clipboard, so it takes no FILE")
 	}
 	format, err := resolveFormat(flags.format, flags.dialect, j.path)
 	if err != nil {
@@ -83,6 +92,7 @@ func (a *app) clean(args []string, flags cleanFlags) error {
 	if err != nil {
 		return err
 	}
+	j.changed, j.unchanged = "clipboard cleaned", "nothing to hide on the clipboard; left as it was"
 	mode := cmp.Or(flags.mode, a.config.Mode)
 	if mode != config.ModePlaceholder && mode != config.ModeFake {
 		return errors.New("invalid --mode: want placeholder or fake")
@@ -136,6 +146,9 @@ func (a *app) clean(args []string, flags cleanFlags) error {
 // run opens the job's input, passes it through rd as text or SQL, and
 // writes the result to stdout or --output.
 func (a *app) run(j job, rd sqlscan.Redactor) error {
+	if j.flags.clip {
+		return a.runClipboard(j, rd)
+	}
 	in, inInfo, err := a.openInput(j.path)
 	if err != nil {
 		return err
@@ -151,6 +164,44 @@ func (a *app) run(j job, rd sqlscan.Redactor) error {
 	}
 
 	return writeOutput(j.flags.output, j.flags.force, inInfo, write)
+}
+
+// runClipboard passes the clipboard's text through rd and writes the result
+// back to the clipboard, or to --output. A note on stderr says what
+// happened, since nothing else is printed.
+func (a *app) runClipboard(j job, rd sqlscan.Redactor) error {
+	if a.env.Clipboard == nil {
+		return errors.New("no clipboard is available")
+	}
+	text, err := a.env.Clipboard.Read()
+	if err != nil {
+		return err
+	}
+	if text == "" {
+		return errors.New("the clipboard holds no text")
+	}
+	write, err := a.writer(j.format, j.dialect, strings.NewReader(text), rd)
+	if err != nil {
+		return err
+	}
+	if j.flags.output != "" {
+		return writeOutput(j.flags.output, j.flags.force, nil, write)
+	}
+
+	var out strings.Builder
+	if err := write(&out); err != nil {
+		return err
+	}
+	if out.String() == text {
+		_, err := fmt.Fprintln(a.env.Stderr, "cuddio: "+j.unchanged)
+		return err
+	}
+	if err := a.env.Clipboard.Write(out.String(), j.private); err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(a.env.Stderr, "cuddio: "+j.changed)
+
+	return err
 }
 
 // writer returns the function that passes in through rd for format. For

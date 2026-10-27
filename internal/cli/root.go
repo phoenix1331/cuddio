@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/phoenix1331/cuddio/internal/clipboard"
 	"github.com/phoenix1331/cuddio/internal/config"
 	"github.com/phoenix1331/cuddio/internal/detect"
 )
@@ -45,6 +46,8 @@ type Env struct {
 	CacheDir string
 	// Now is the clock for mapping expiry; nil uses time.Now.
 	Now func() time.Time
+	// Clipboard is the system clipboard for --clip; nil means none.
+	Clipboard clipboard.Clipboard
 }
 
 // app holds the command tree and the state its commands share.
@@ -96,7 +99,7 @@ func newApp(env Env) *app {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Waiting for typed input would look like a hang, so show help instead
-			if len(args) == 0 && isTerminal(env.Stdin) {
+			if len(args) == 0 && !flags.clip && isTerminal(env.Stdin) {
 				return cmd.Help()
 			}
 			return a.clean(args, flags)
@@ -123,4 +126,5 @@ func addIOFlags(cmd *cobra.Command, flags *ioFlags) {
 	cmd.Flags().BoolVar(&flags.force, "force", false, "replace the --output file if it exists")
 	cmd.Flags().StringVar(&flags.format, "format", "", "input format, text or sql (default: sql for .sql files, otherwise text)")
 	cmd.Flags().StringVar(&flags.dialect, "dialect", "", "SQL dialect, mysql, postgres or sqlite (default: detected from the start of the dump); implies --format sql")
+	cmd.Flags().BoolVar(&flags.clip, "clip", false, "read the clipboard and write the result back to it (or to --output)")
 }

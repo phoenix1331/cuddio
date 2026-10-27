@@ -12,6 +12,11 @@ updates:
     groups:
       go-modules:
         patterns: ['*']
+    ignore:
+      # Test-only, with no semver tags: Dependabot resolves "latest" to the
+      # parent repo's v2.1.0-rc.5+incompatible tag, which lacks the package,
+      # and the whole group update fails. Bump the pseudo-version by hand
+      - dependency-name: github.com/pingcap/tidb/pkg/parser
 
   - package-ecosystem: github-actions
     directory: /

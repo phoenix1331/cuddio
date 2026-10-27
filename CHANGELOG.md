@@ -33,6 +33,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `--check` prints how many values would be hidden and exits 1 if there are any, for CI; `--report` prints a count per rule ID (and per sensitive SQL column), never the values. Both work on files, stdin, the clipboard and SQL, and leave the input untouched
 - `cuddio rules` lists every rule (built-in, gitleaks and custom from config) with its category, label, default state, whether config has it on, and source; `--category secret|pii` narrows the list
 - UTF-16 input (what Windows PowerShell 5.1 writes with `>` and `Out-File`) is refused with instructions to convert it, instead of passing through with nothing hidden; `--help` advises giving cuddio the file name and `-o` in Windows PowerShell 5.1, since `|` and `>` re-encode text
+- On Windows, `--map`, `restore` and `forget` now report a file sitting where the cache folder should be, as on Linux and macOS, instead of treating it as an empty store (so `--map` no longer writes output it then cannot save a mapping for)
 - `--map` refuses to store a mapping when the input already uses one of the session's placeholders for something else (such as cleaning cleaned output), since restore could not tell them apart; placeholder-shaped text in the input is otherwise kept, and new placeholders skip its numbers
 
 [Unreleased]: https://github.com/phoenix1331/cuddio/commits/main

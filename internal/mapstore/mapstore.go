@@ -137,12 +137,9 @@ func (s *Store) Save(pairs []replace.Pair) error {
 
 // Forget deletes every file the store has written, live or not.
 func (s *Store) Forget() error {
-	entries, err := os.ReadDir(s.dir)
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil
-	}
-	if err != nil {
-		return fmt.Errorf("mapping store: %w", err)
+	entries, err := s.entries()
+	if err != nil || entries == nil {
+		return err
 	}
 	for _, e := range entries {
 		if ours(e.Name()) {
@@ -159,12 +156,9 @@ func (s *Store) Forget() error {
 // mapping file and deletes it if it has expired or cannot be read. It
 // returns the live record, or nil.
 func (s *Store) purge() (*record, error) {
-	entries, err := os.ReadDir(s.dir)
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("mapping store: %w", err)
+	entries, err := s.entries()
+	if err != nil || entries == nil {
+		return nil, err
 	}
 	for _, e := range entries {
 		if !strings.HasPrefix(e.Name(), tempPrefix) {
@@ -202,6 +196,28 @@ func (s *Store) purge() (*record, error) {
 	}
 
 	return &rec, nil
+}
+
+// entries lists the store's folder, or returns nil when it does not exist
+// yet. A file in its place is an error on every platform: on Windows,
+// listing a file reports "not found", which would otherwise read as an
+// empty store.
+func (s *Store) entries() ([]os.DirEntry, error) {
+	entries, err := os.ReadDir(s.dir)
+	if errors.Is(err, fs.ErrNotExist) {
+		if info, statErr := os.Stat(s.dir); statErr == nil && !info.IsDir() {
+			return nil, errors.New("mapping store: the cache path is a file, not a folder")
+		}
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("mapping store: %w", err)
+	}
+	if entries == nil {
+		entries = []os.DirEntry{}
+	}
+
+	return entries, nil
 }
 
 // ensureDir creates the store's folder with mode 0700, and narrows an

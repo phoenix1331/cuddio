@@ -44,3 +44,6 @@ $utf16 = Join-Path $work 'utf16.log'
 if ($LASTEXITCODE -ne 2) { Fail "UTF-16 input exited $LASTEXITCODE, want 2" }
 
 Write-Output 'e2e.ps1: passed'
+# The last native command exited 2 on purpose; GitHub's PowerShell wrapper
+# ends with "exit $LASTEXITCODE", so reset it, or the step fails
+exit 0

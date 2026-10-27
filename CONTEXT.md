@@ -27,7 +27,8 @@ First of a planned set of Welsh-named Go tools sharing one visual style for READ
 | `internal/names/` | Nearest known name within two edits, for "did you mean" hints that never echo anything further away |
 | `internal/config/` | Config schema, defaults, project file discovery, strict YAML decoding, per-file validation, merging, `CustomRules` compilation |
 | `scripts/check.sh` | The quality gate, run locally and in CI |
-| `.github/scripts/` | `check-archives.sh` (release archive allow list), `check-module-size.sh` (module zip budget) |
+| `scripts/e2e.sh` | End-to-end run of the built binary, locally and in CI's `e2e` job |
+| `.github/scripts/` | `check-archives.sh` (release archive allow list), `check-module-size.sh` (module zip budget), `e2e.ps1` (Windows PowerShell 5.1 checks) |
 | `.githooks/` | `commit-msg` and `pre-commit`, enabled with `git config core.hooksPath .githooks` |
 
 ## Decisions
@@ -79,6 +80,12 @@ First of a planned set of Welsh-named Go tools sharing one visual style for READ
 | `--check`/`--report` with `-o` or `--map` is an error; with `--clip` the clipboard is read, never written | Counting writes nothing, so those flags would silently do nothing |
 | `cuddio rules` columns: ID, CATEGORY, LABEL, DEFAULT (no config), ENABLED (after the config files found), SOURCE (built-in, gitleaks, custom); `--category` filters | One command answers both "what exists" and "what is on here" |
 | Text memory test samples live heap after forced GCs, allowing the 1 MiB line buffer plus 1 MiB | `HeapSys` flaked (one run in three under load, also on the earlier code); same method as the SQL memory tests |
+| Input starting with a UTF-16 (or UTF-32) byte order mark is refused with conversion instructions, before any output is created; a UTF-8 BOM is fine | Every character is separated by NUL bytes, so no rule matches and secrets pass through: found by testing, exit 0 with the email intact. PowerShell 5.1 writes UTF-16 with `>` and `Out-File` |
+| Windows PowerShell 5.1 guidance in `--help`: name the file and use `-o`, not `|` or `>` | 5.1 re-encodes piped text with `$OutputEncoding` (ASCII by default) and writes `>` as UTF-16 |
+| `.gitattributes` marks `**/testdata/** -text` | `testdata/**` only matched a root `testdata/`, so `internal/*/testdata` fixtures were `text=auto` and a CR byte in one would have been normalised away |
+| `scripts/e2e.sh` (POSIX, Git Bash on Windows) builds the binary and runs every command with exit codes and output checked, with `HOME`, XDG, `APPDATA` and `LOCALAPPDATA` in a temp dir; `.github/scripts/e2e.ps1` adds Windows PowerShell 5.1 checks; CI job `e2e` on all three OSes | Proves the shipped binary, not just packages, on each platform; never touches a developer's own config or mappings |
+| Both workflows have `workflow_dispatch` | A run can be started without a push |
+| `e2e.ps1` keeps to ASCII, building non-ASCII text from code points, and uses `ErrorActionPreference = 'Continue'` with `$LASTEXITCODE` checks | PowerShell 5.1 reads a BOM-less script as Windows-1252, and turns redirected native stderr into errors that `Stop` would throw |
 | `--map` seeds placeholders from the live mapping and saves the merged mapping after the output is written; a failed run stores nothing | Numbering carries on across runs within the TTL, so files cleaned for one chat never share a token |
 | Placeholder-shaped text in the input is reserved as it streams past (`Reserve` on every value and line), and new tokens skip it; if a token cuddio already handed out (this run or seeded) shows up in the input, the run is ambiguous: output is written, the mapping is not stored, exit 2 | Streaming cannot look ahead, so reserving covers the common case (a template mentioning `<EMAIL_1>` first) and refusing covers the rest; restore must never swap the input's own text for a real value |
 | A sensitive column value goes only to `Whole`, never also to `Redact` | Redact on a value about to be replaced whole would hand out tokens that never reach the output |
@@ -182,7 +189,7 @@ Tools (not module dependencies): golangci-lint v2.15, govulncheck, GoReleaser v2
 
 | Workflow | Runs |
 |---|---|
-| `test.yml` | `scripts/check.sh` on Go 1.26 and 1.27 x Linux, macOS, Windows (`shell: bash`); then module size check, GoReleaser snapshot and `check-archives.sh` |
+| `test.yml` | `scripts/check.sh` on Go 1.26 and 1.27 x Linux, macOS, Windows (`shell: bash`); `scripts/e2e.sh` on all three (plus `e2e.ps1` on Windows); module size check, GoReleaser snapshot and `check-archives.sh` |
 | `govulncheck.yml` | Every push, every pull request, weekly |
 | `.github/dependabot.yml` | Weekly, Go modules and Actions, one grouped PR each |
 

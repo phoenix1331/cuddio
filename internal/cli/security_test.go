@@ -290,3 +290,76 @@ func TestCleanSQLStreamErrorsNeverLeak(t *testing.T) {
 		})
 	}
 }
+
+// utf16 encodes s as UTF-16 with a byte order mark, as Windows PowerShell
+// 5.1 writes files.
+func utf16(s string, bigEndian bool) string {
+	var b strings.Builder
+	if bigEndian {
+		b.WriteString("\xfe\xff")
+	} else {
+		b.WriteString("\xff\xfe")
+	}
+	for _, r := range s {
+		hi, lo := byte(r>>8), byte(r)
+		if bigEndian {
+			hi, lo = lo, hi
+		}
+		b.WriteByte(lo)
+		b.WriteByte(hi)
+	}
+
+	return b.String()
+}
+
+func TestUTF16InputIsRefused(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		in   string
+		args func(dir string) []string
+	}{
+		{"file, little endian", utf16(leakyInput, false), func(dir string) []string { return []string{filepath.Join(dir, "in.log")} }},
+		{"file, big endian, to output", utf16(leakyInput, true), func(dir string) []string {
+			return []string{filepath.Join(dir, "in.log"), "-o", filepath.Join(dir, "out.log")}
+		}},
+		{"check", utf16(leakyInput, false), func(dir string) []string { return []string{filepath.Join(dir, "in.log"), "--check"} }},
+		{"sql", utf16("INSERT INTO t (email) VALUES ('alice@shop.test');", false), func(dir string) []string {
+			return []string{filepath.Join(dir, "in.log"), "--dialect", "mysql"}
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			dir := t.TempDir()
+			writeFile(t, filepath.Join(dir, "in.log"), tt.in)
+			got := execute(t, Env{Rules: testRules, Args: tt.args(dir)})
+
+			if got.code != exitError || got.stdout != "" || !strings.Contains(got.stderr, "UTF-16") || !strings.Contains(got.stderr, "Set-Content -Encoding utf8") {
+				t.Errorf("clean = %d %q %q, want a UTF-16 error", got.code, got.stdout, got.stderr)
+			}
+			if _, err := os.Stat(filepath.Join(dir, "out.log")); err == nil {
+				t.Error("an output file was created")
+			}
+		})
+	}
+
+	got := execute(t, Env{Rules: testRules, Stdin: strings.NewReader(utf16(leakyInput, false))})
+	if got.code != exitError || got.stdout != "" {
+		t.Errorf("UTF-16 on stdin = %d %q", got.code, got.stdout)
+	}
+}
+
+func TestUTF8WithBOMIsCleaned(t *testing.T) {
+	t.Parallel()
+
+	for _, in := range []string{"\xef\xbb\xbf" + leakyInput, "\xff", "\xfe"} {
+		got := execute(t, Env{Rules: testRules, Stdin: strings.NewReader(in)})
+		if got.code != exitOK {
+			t.Errorf("clean %q = %d %q", in[:1], got.code, got.stderr)
+		}
+		assertNoLeak(t, leakyValues, got.stdout)
+	}
+}

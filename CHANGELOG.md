@@ -32,6 +32,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `--clip` cleans the clipboard in place (or writes to `--output`), and `restore --clip` puts real values back on it; works on Windows, WSL (through PowerShell, so non-ASCII text survives), macOS and Linux (wl-clipboard, xclip or xsel), with a hint naming what to install when no clipboard tool is found. On Windows and WSL, restored text is kept out of clipboard history and cloud sync
 - `--check` prints how many values would be hidden and exits 1 if there are any, for CI; `--report` prints a count per rule ID (and per sensitive SQL column), never the values. Both work on files, stdin, the clipboard and SQL, and leave the input untouched
 - `cuddio rules` lists every rule (built-in, gitleaks and custom from config) with its category, label, default state, whether config has it on, and source; `--category secret|pii` narrows the list
+- UTF-16 input (what Windows PowerShell 5.1 writes with `>` and `Out-File`) is refused with instructions to convert it, instead of passing through with nothing hidden; `--help` advises giving cuddio the file name and `-o` in Windows PowerShell 5.1, since `|` and `>` re-encode text
 - `--map` refuses to store a mapping when the input already uses one of the session's placeholders for something else (such as cleaning cleaned output), since restore could not tell them apart; placeholder-shaped text in the input is otherwise kept, and new placeholders skip its numbers
 
 [Unreleased]: https://github.com/phoenix1331/cuddio/commits/main

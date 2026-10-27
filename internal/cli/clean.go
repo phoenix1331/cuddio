@@ -169,11 +169,15 @@ func (a *app) run(j job, rd sqlscan.Redactor) error {
 	if j.flags.clip {
 		return a.runClipboard(j, rd)
 	}
-	in, inInfo, err := a.openInput(j.path)
+	file, inInfo, err := a.openInput(j.path)
 	if err != nil {
 		return err
 	}
-	defer in.Close()
+	defer file.Close()
+	in, err := checkEncoding(file)
+	if err != nil {
+		return err
+	}
 
 	write, err := a.writer(j.format, j.dialect, in, rd)
 	if err != nil {
@@ -256,6 +260,23 @@ func (a *app) writer(format string, dialect sqlscan.Dialect, in io.Reader, rd sq
 	return func(w io.Writer) error {
 		return sqlscan.Clean(w, buffered, dialect, rd, cols, sqlscan.Options{})
 	}, nil
+}
+
+// errUTF16 explains why UTF-16 input is refused.
+var errUTF16 = errors.New("the input is UTF-16 text, as Windows PowerShell 5.1 writes with > and Out-File; no rule can match it, so nothing would be hidden. Convert it to UTF-8 first, for example: Get-Content FILE | Set-Content -Encoding utf8 FILE.utf8")
+
+// checkEncoding refuses input that starts with a UTF-16 (or UTF-32) byte
+// order mark, which would pass through every rule unredacted, and returns
+// a reader that still starts at the first byte.
+func checkEncoding(in io.Reader) (io.Reader, error) {
+	buffered := bufio.NewReader(in)
+	// A read error here comes back again when cleaning reads on
+	head, _ := buffered.Peek(2)
+	if string(head) == "\xff\xfe" || string(head) == "\xfe\xff" {
+		return nil, errUTF16
+	}
+
+	return buffered, nil
 }
 
 // errFindings is returned by --check when something would be hidden; it

@@ -33,6 +33,8 @@ git config core.hooksPath .githooks   # activates the git hooks
 
 The tests include a no-network check: they fail if the build gains a network package or if any dial, listen or HTTP code is linked into the binary.
 
+`sh scripts/e2e.sh` builds the binary and runs every command on generated input, checking output and exit codes. It points the config and cache folders at a temporary directory, so your own settings and stored mappings are never touched. CI runs it on Linux, macOS and Windows (Git Bash), plus `.github/scripts/e2e.ps1` under Windows PowerShell 5.1.
+
 ## Git hooks
 
 - `commit-msg` - messages must be entirely lowercase [Conventional Commits](https://www.conventionalcommits.org/) without a scope, e.g. `feat: add stripe key rule`. `chore(deps): ...` is rejected

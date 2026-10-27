@@ -2,7 +2,7 @@
 * text=auto eol=lf
 
 # Fixtures are compared byte for byte, including CRLF variants
-testdata/** -text
+**/testdata/** -text
 
 # Not part of GitHub source archives
 /.github            export-ignore

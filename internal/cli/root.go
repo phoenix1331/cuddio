@@ -25,6 +25,9 @@ const longHelp = `cuddio hides secrets and PII (personally identifiable informat
 .env files and SQL dumps before you share them with AI tools. Everything runs
 locally: cuddio never makes a network connection.
 
+On Windows PowerShell 5.1, give cuddio the file name and use -o rather than
+piping with | or redirecting with >, which re-encode text.
+
 Redaction is best effort. Review the output before you share it.`
 
 // Env is everything a command needs from the outside world, so tests can run

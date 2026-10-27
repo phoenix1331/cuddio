@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -39,6 +40,31 @@ jobs:
 
       # gofmt, go vet, golangci-lint, race tests and the 90% coverage gate
       - run: sh scripts/check.sh
+
+  e2e:
+    name: end to end on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.27.x'
+
+      # Every command on generated input, with exit codes and output checked
+      - run: sh scripts/e2e.sh
+
+      # UTF-8 files and UTF-16 refusal under Windows PowerShell 5.1
+      - if: runner.os == 'Windows'
+        shell: powershell
+        run: .github/scripts/e2e.ps1
 
   archives:
     name: release archives

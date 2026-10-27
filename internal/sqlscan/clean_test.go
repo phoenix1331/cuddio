@@ -24,7 +24,7 @@ func (stubRedactor) Redact(s string) string {
 	return strings.ReplaceAll(s, "CLOSE", "<*/>")
 }
 
-func (stubRedactor) Whole(label, value string) string {
+func (stubRedactor) Whole(label, value string, _ int) string {
 	if value == "keep" {
 		return value
 	}
@@ -182,8 +182,8 @@ func TestCleanMySQL(t *testing.T) {
 // identity changes nothing, so cleaning must give the input back exactly.
 type identity struct{}
 
-func (identity) Redact(s string) string       { return s }
-func (identity) Whole(_, value string) string { return value }
+func (identity) Redact(s string) string              { return s }
+func (identity) Whole(_, value string, _ int) string { return value }
 
 func TestCleanMySQLUnchangedRoundTrips(t *testing.T) {
 	t.Parallel()

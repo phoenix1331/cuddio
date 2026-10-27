@@ -72,10 +72,21 @@ func (p *Placeholders) Pairs() []Pair {
 	return append([]Pair(nil), p.pairs...)
 }
 
-// Replace swaps the chosen matches in s for placeholders. Overlaps are
-// resolved first (see Resolve), and tokens are handed out left to right, so
-// numbering follows reading order.
+// Fit returns token unchanged: restore needs a placeholder whole, so it is
+// never shortened to fit a column.
+func (p *Placeholders) Fit(token string, _ int) string {
+	return token
+}
+
+// Replace swaps the chosen matches in s for placeholders (see Apply).
 func (p *Placeholders) Replace(s string, matches []Match) string {
+	return Apply(s, matches, p.Token)
+}
+
+// Apply swaps the chosen matches in s for what token returns for each.
+// Overlaps are resolved first (see Resolve), and tokens are handed out left
+// to right, so numbering follows reading order.
+func Apply(s string, matches []Match, token func(label, value string) string) string {
 	chosen := Resolve(s, matches)
 	if len(chosen) == 0 {
 		return s
@@ -86,7 +97,7 @@ func (p *Placeholders) Replace(s string, matches []Match) string {
 	last := 0
 	for _, m := range chosen {
 		b.WriteString(s[last:m.Start])
-		b.WriteString(p.Token(m.Label, s[m.Start:m.End]))
+		b.WriteString(token(m.Label, s[m.Start:m.End]))
 		last = m.End
 	}
 	b.WriteString(s[last:])

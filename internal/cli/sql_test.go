@@ -115,3 +115,41 @@ func TestCleanSQLErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestCleanMode(t *testing.T) {
+	t.Parallel()
+
+	in := "-- MySQL dump\nINSERT INTO users (name, email, password) VALUES ('Alice Jones','alice@shop.test','hash');\n"
+	tests := []struct {
+		name   string
+		args   []string
+		config string
+		want   string
+	}{
+		{"placeholder by default", nil, "", "-- MySQL dump\nINSERT INTO users (name, email, password) VALUES ('<NAME_1>','<EMAIL_1>','<PASSWORD_1>');\n"},
+		{"fake flag", []string{"--mode", "fake"}, "", "-- MySQL dump\nINSERT INTO users (name, email, password) VALUES ('Alex Smith','user1@example.invalid','REDACTED');\n"},
+		{"fake from config", nil, "mode: fake\n", "-- MySQL dump\nINSERT INTO users (name, email, password) VALUES ('Alex Smith','user1@example.invalid','REDACTED');\n"},
+		{"flag beats config", []string{"--mode", "placeholder"}, "mode: fake\n", "-- MySQL dump\nINSERT INTO users (name, email, password) VALUES ('<NAME_1>','<EMAIL_1>','<PASSWORD_1>');\n"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			dir := t.TempDir()
+			writeConfig(t, filepath.Join(dir, config.ProjectFile), tt.config)
+			args := append([]string{"--format", "sql"}, tt.args...)
+
+			got := execute(t, Env{Rules: testRules, WorkDir: dir, Args: args, Stdin: strings.NewReader(in)})
+
+			if got.code != exitOK || got.stdout != tt.want {
+				t.Errorf("clean = %d %q (stderr %q), want %d %q", got.code, got.stdout, got.stderr, exitOK, tt.want)
+			}
+		})
+	}
+
+	got := execute(t, Env{Rules: testRules, Args: []string{"--mode", "random"}, Stdin: strings.NewReader(in)})
+	if got.code != exitError || got.stderr != "cuddio: invalid --mode: want placeholder or fake\n" {
+		t.Errorf("invalid mode = %d %q", got.code, got.stderr)
+	}
+}

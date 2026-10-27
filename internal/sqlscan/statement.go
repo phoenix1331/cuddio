@@ -1,6 +1,9 @@
 package sqlscan
 
-import "strings"
+import (
+	"strconv"
+	"strings"
+)
 
 // statementKind is what the statement being read turned out to be.
 type statementKind int
@@ -41,12 +44,29 @@ const (
 )
 
 // copyRows is what the rows of a COPY ... FROM stdin block need: each
-// field's label ("" for columns that are not sensitive), or raw when the
-// COPY has options, so its rows may not be tab-separated text.
+// field's label and length, or raw when the COPY has options, so its rows
+// may not be tab-separated text.
 type copyRows struct {
-	labels []string
+	fields []field
 	raw    bool
 }
+
+// field is what cleaning needs to know about a column: its label, "" when
+// it is not sensitive, and the most characters it holds, 0 when unknown.
+type field struct {
+	label  string
+	maxLen int
+}
+
+// table is what CREATE TABLE said about a table: its column names in order,
+// and the length of each char or varchar column.
+type table struct {
+	columns []string
+	lengths map[string]int
+}
+
+// lengthTypes are column types whose "(n)" is a length in characters.
+var lengthTypes = []string{"CHAR", "VARCHAR", "CHARACTER", "VARYING", "NCHAR", "NVARCHAR"}
 
 // statement follows the statement being cleaned closely enough to know
 // which column each INSERT value or COPY field belongs to. It keeps the
@@ -54,7 +74,7 @@ type copyRows struct {
 // earlier statements.
 type statement struct {
 	cols   *Columns
-	tables map[string][]string
+	tables map[string]table
 	// copy describes the COPY data block being read, from the ";" of its
 	// COPY statement to its "\." line.
 	copy *copyRows
@@ -69,11 +89,17 @@ type statement struct {
 	// newColumn is set where a CREATE TABLE definition starts, so a name
 	// there is a column unless it is a keyword such as PRIMARY.
 	newColumn bool
+	// lengths collects CREATE TABLE's char and varchar lengths; typeWord is
+	// the last word of the current definition's type, and lengthNext is
+	// set inside its "(" when that word is one of lengthTypes.
+	lengths    map[string]int
+	typeWord   Token
+	lengthNext bool
 	// options is set when a COPY ... FROM STDIN has anything after STDIN.
 	options bool
-	// labels holds each INSERT column's label, "" for columns that are not
-	// sensitive, worked out once per statement rather than per value.
-	labels []string
+	// fields describes each INSERT column, worked out once per statement
+	// rather than per value.
+	fields []field
 	// index is the position of the current value in an INSERT row.
 	index int
 	// afterWrapper is set just after a replace or unistr call name in a
@@ -84,36 +110,39 @@ type statement struct {
 }
 
 func newStatement(cols *Columns) *statement {
-	return &statement{cols: cols, tables: map[string][]string{}}
+	return &statement{cols: cols, tables: map[string]table{}}
 }
 
-// label returns the label for a value at the current position, or "" if
-// the position is not a sensitive column of an INSERT row. A value is a
-// literal in the row itself, or the first argument of replace() or
-// unistr(), which sqlite3 .dump wraps around strings holding line breaks.
-func (s *statement) label() string {
-	if s.kind != insert || s.phase != values || s.index >= len(s.labels) {
-		return ""
+// field returns the column at the current position, or a zero field if the
+// position is not a value of an INSERT row. A value is a literal in the row
+// itself, or the first argument of replace() or unistr(), which sqlite3
+// .dump wraps around strings holding line breaks.
+func (s *statement) field() field {
+	if s.kind != insert || s.phase != values || s.index >= len(s.fields) {
+		return field{}
 	}
 	if s.depth == 1 || (s.depth == 2 && s.wrapped && s.arg == 0) {
-		return s.labels[s.index]
+		return s.fields[s.index]
 	}
 
-	return ""
+	return field{}
 }
 
-// columnLabels returns the label of each column the statement fills: its
-// own column list, or the table's columns from CREATE TABLE.
-func (s *statement) columnLabels() []string {
+// columnFields describes each column the statement fills: its own column
+// list, or the table's columns from CREATE TABLE. Lengths come from CREATE
+// TABLE either way.
+func (s *statement) columnFields() []field {
+	t := s.tables[s.table]
 	if !s.explicit {
-		s.columns = s.tables[s.table]
+		s.columns = t.columns
 	}
-	labels := make([]string, len(s.columns))
+	fields := make([]field, len(s.columns))
 	for i, column := range s.columns {
-		labels[i], _ = s.cols.Label(s.table, column)
+		fields[i].label, _ = s.cols.Label(s.table, column)
+		fields[i].maxLen = t.lengths[column]
 	}
 
-	return labels
+	return fields
 }
 
 // observe moves the statement on past tok, a token that is not whitespace,
@@ -122,7 +151,7 @@ func (s *statement) observe(tok Token) {
 	if isPunct(tok, ";") {
 		var rows *copyRows
 		if s.kind == copyStatement && s.phase == copyStdin {
-			rows = &copyRows{labels: s.columnLabels(), raw: s.options}
+			rows = &copyRows{fields: s.columnFields(), raw: s.options}
 		}
 		*s = statement{cols: s.cols, tables: s.tables, copy: rows}
 		return
@@ -182,6 +211,7 @@ func (s *statement) observeCreate(tok Token) {
 	case s.observeName(tok):
 	case s.phase == afterName && isPunct(tok, "("):
 		s.phase, s.depth, s.newColumn = columnList, 1, true
+		s.lengths = map[string]int{}
 	case s.phase == columnList:
 		s.observeDefinition(tok)
 	default:
@@ -190,23 +220,34 @@ func (s *statement) observeCreate(tok Token) {
 	}
 }
 
-// observeDefinition reads CREATE TABLE's column definitions.
+// observeDefinition reads CREATE TABLE's column definitions, and the
+// length of each char and varchar column.
 func (s *statement) observeDefinition(tok Token) {
 	newColumn := s.newColumn
 	s.newColumn = false
+	lengthNext := s.lengthNext
+	s.lengthNext = false
 	switch {
 	case isPunct(tok, "("):
 		s.depth++
+		s.lengthNext = s.depth == 2 && isKeyword(s.typeWord, lengthTypes...)
 	case isPunct(tok, ")"):
 		s.depth--
 		if s.depth == 0 {
-			s.tables[s.table] = s.columns
+			s.tables[s.table] = table{columns: s.columns, lengths: s.lengths}
 			s.phase = finished
 		}
 	case s.depth == 1 && isPunct(tok, ","):
 		s.newColumn = true
 	case newColumn && isName(tok) && !isKeyword(tok, constraintKeywords...):
 		s.columns = append(s.columns, nameOf(tok))
+		s.typeWord = Token{}
+	case lengthNext && tok.Kind == Number && len(s.columns) > 0:
+		if n, err := strconv.Atoi(tok.Text); err == nil {
+			s.lengths[s.columns[len(s.columns)-1]] = n
+		}
+	case s.depth == 1 && tok.Kind == Word:
+		s.typeWord = tok
 	}
 }
 
@@ -223,7 +264,7 @@ func (s *statement) observeInsert(tok Token) {
 		s.phase = overriding
 	case s.phase == afterName && isKeyword(tok, "VALUES", "VALUE"):
 		s.phase = values
-		s.labels = s.columnLabels()
+		s.fields = s.columnFields()
 	case s.phase == columnList:
 		s.observeColumnList(tok)
 	case s.phase == overriding:

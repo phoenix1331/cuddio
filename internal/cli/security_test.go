@@ -126,7 +126,9 @@ func TestCleanNeverLeaksOrChangesInput(t *testing.T) {
 		},
 		{name: "output directory missing", args: func(in, out string) []string { return []string{in, "-o", filepath.Join(out, "x", "y")} }, wantCode: exitError},
 		{name: "sql format", args: func(in, _ string) []string { return []string{in, "--format", "sql"} }, wantCode: exitError},
-		{name: "fake mode", args: func(in, _ string) []string { return []string{in} }, config: "mode: fake\n", wantCode: exitError},
+		{name: "fake mode from config", args: func(in, _ string) []string { return []string{in} }, config: "mode: fake\n"},
+		{name: "fake mode to output", args: func(in, out string) []string { return []string{in, "--mode", "fake", "-o", out} }},
+		{name: "invalid mode", args: func(in, _ string) []string { return []string{in, "--mode", "alice@shop.test"} }, wantCode: exitError},
 		{
 			name:     "config with values in the wrong places",
 			args:     func(in, _ string) []string { return []string{in} },

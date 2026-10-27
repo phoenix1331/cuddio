@@ -29,6 +29,7 @@ type cleanFlags struct {
 	force   bool
 	format  string
 	dialect string
+	mode    string
 }
 
 // clean reads the file in args, or stdin, and writes the redacted text to
@@ -50,11 +51,12 @@ func (a *app) clean(args []string, flags cleanFlags) error {
 		}
 		dialect = d
 	}
-	if a.config.Mode == config.ModeFake {
-		return errors.New("fake mode is not supported yet")
+	mode := cmp.Or(flags.mode, a.config.Mode)
+	if mode != config.ModePlaceholder && mode != config.ModeFake {
+		return errors.New("invalid --mode: want placeholder or fake")
 	}
 
-	redactor, err := a.redactor()
+	redactor, err := a.redactor(mode)
 	if err != nil {
 		return err
 	}
@@ -105,7 +107,7 @@ func (a *app) cleaner(format string, dialect sqlscan.Dialect, in io.Reader, rd *
 }
 
 // redactor builds the run's redactor from the rules and config.
-func (a *app) redactor() (*detect.Redactor, error) {
+func (a *app) redactor(mode string) (*detect.Redactor, error) {
 	custom, err := config.CustomRules(a.config.Rules.Custom)
 	if err != nil {
 		return nil, err
@@ -122,12 +124,16 @@ func (a *app) redactor() (*detect.Redactor, error) {
 	if err != nil {
 		return nil, err
 	}
+	detector := detect.NewDetector(selected, allow)
+	if mode == config.ModeFake {
+		return detect.NewRedactor(detector, replace.NewFakes()), nil
+	}
 	placeholders, err := replace.NewPlaceholders(a.config.Placeholder.Format)
 	if err != nil {
 		return nil, err
 	}
 
-	return detect.NewRedactor(detect.NewDetector(selected, allow), placeholders), nil
+	return detect.NewRedactor(detector, placeholders), nil
 }
 
 // openInput opens path, or stdin when path is empty. The returned file info

@@ -101,6 +101,7 @@ func newApp(env Env) *app {
 	cmd.Flags().StringVarP(&flags.output, "output", "o", "", "write to this file instead of stdout; never the input file")
 	cmd.Flags().BoolVar(&flags.force, "force", false, "replace the --output file if it exists")
 	cmd.Flags().StringVar(&flags.format, "format", "", "input format, text or sql (default: sql for .sql files, otherwise text)")
+	cmd.Flags().StringVar(&flags.mode, "mode", "", "placeholder (<EMAIL_1>, reversible) or fake (realistic fake values, so a dump still imports); default from config, else placeholder")
 	cmd.Flags().StringVar(&flags.dialect, "dialect", "", "SQL dialect, mysql, postgres or sqlite (default: detected from the start of the dump); implies --format sql")
 	cmd.SetVersionTemplate("cuddio {{.Version}}\n")
 	cmd.SetIn(env.Stdin)

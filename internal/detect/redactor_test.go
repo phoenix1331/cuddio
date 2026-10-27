@@ -34,7 +34,7 @@ func TestRedactor(t *testing.T) {
 		{"NAME", "<NAME_9>", "<NAME_9>"},
 	}
 	for _, tt := range tests {
-		if got := r.Whole(tt.label, tt.value); got != tt.want {
+		if got := r.Whole(tt.label, tt.value, 0); got != tt.want {
 			t.Errorf("Whole(%q, %q) = %q, want %q", tt.label, tt.value, got, tt.want)
 		}
 	}

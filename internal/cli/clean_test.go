@@ -110,6 +110,8 @@ func TestCleanAppliesConfig(t *testing.T) {
 		{"category disabled", "rules:\n  disable: [pii]\n", "alice@shop.test ok@shop.test <TOKEN_1>\n"},
 		{"allowlist value", "allowlist:\n  values: [ok@shop.test]\n", "<EMAIL_1> ok@shop.test <TOKEN_1>\n"},
 		{"allowlist pattern", "allowlist:\n  patterns: ['^tok_']\n", "<EMAIL_1> <EMAIL_2> tok_abc\n"},
+		{"fake mode", "mode: fake\n", "user1@example.invalid user2@example.invalid ayr_apw\n"},
+		{"fake mode ignores the placeholder format", "mode: fake\nplaceholder:\n  format: '[{label}#{n}]'\n", "user1@example.invalid user2@example.invalid ayr_apw\n"},
 	}
 
 	for _, tt := range tests {
@@ -142,7 +144,6 @@ func TestCleanSetupErrors(t *testing.T) {
 		{"invalid allowlist pattern", testRules, "allowlist:\n  patterns: ['tok_(secret']\n", ": allowlist pattern 1: invalid pattern: missing closing )\n"},
 		{"placeholder format without {n}", testRules, "placeholder:\n  format: '<{label}>'\n", ": placeholder format must contain {label} and {n}\n"},
 		{"invalid custom rule", testRules, "rules:\n  custom:\n    - {id: acme, category: secret, label: ACME, pattern: 'tok_(secret'}\n", ": rule acme: invalid pattern: missing closing )\n"},
-		{"fake mode", testRules, "mode: fake\n", "cuddio: fake mode is not supported yet\n"},
 		{"invalid rule", []detect.Rule{{ID: "Bad"}}, "", "cuddio: rule id must be lowercase letters, digits and single hyphens\n"},
 	}
 

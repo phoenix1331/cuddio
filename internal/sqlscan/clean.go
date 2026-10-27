@@ -13,9 +13,10 @@ type Redactor interface {
 	// Redact replaces whatever pattern rules find in s.
 	Redact(s string) string
 	// Whole replaces all of value, from a sensitive column, with a value
-	// labelled label. It may return value as it is, such as when it is
+	// labelled label that fits in maxLen characters (0 when the column's
+	// length is unknown). It may return value as it is, such as when it is
 	// allowlisted.
-	Whole(label, value string) string
+	Whole(label, value string, maxLen int) string
 }
 
 // CleanMySQL copies a MySQL or MariaDB dump from r to w. Every string value
@@ -77,7 +78,7 @@ func clean(w io.Writer, tz *Tokenizer, rd Redactor, cols *Columns) error {
 		case CopyEnd:
 			st.copy = nil
 		default:
-			text = cleanValue(tok, rd, st.label())
+			text = cleanValue(tok, rd, st.field())
 			st.observe(tok)
 		}
 		if _, err := out.WriteString(text); err != nil {
@@ -92,25 +93,25 @@ func clean(w io.Writer, tz *Tokenizer, rd Redactor, cols *Columns) error {
 	return nil
 }
 
-// cleanValue returns tok's text with its value redacted. label is set when
-// tok is a value in a sensitive column, which is replaced whole.
-func cleanValue(tok Token, rd Redactor, label string) string {
+// cleanValue returns tok's text with its value redacted. f has a label
+// when tok is a value in a sensitive column, which is replaced whole.
+func cleanValue(tok Token, rd Redactor, f field) string {
 	switch tok.Kind {
 	case String:
 		value := tok.Value()
 		cleaned := rd.Redact(value)
-		if label != "" {
-			cleaned = rd.Whole(label, value)
+		if f.label != "" {
+			cleaned = rd.Whole(f.label, value, f.maxLen)
 		}
 		if cleaned == value {
 			return tok.Text
 		}
 		return quote(tok, cleaned)
 	case Number, Hex, Bit:
-		if label == "" {
+		if f.label == "" {
 			return tok.Text
 		}
-		if cleaned := rd.Whole(label, tok.Text); cleaned != tok.Text {
+		if cleaned := rd.Whole(f.label, tok.Text, f.maxLen); cleaned != tok.Text {
 			return quote(tok, cleaned)
 		}
 	}
@@ -246,8 +247,8 @@ func cleanCopyRow(line string, rd Redactor, rows *copyRows) string {
 		}
 		value := decodeCopy(field)
 		cleaned := rd.Redact(value)
-		if i < len(rows.labels) && rows.labels[i] != "" {
-			cleaned = rd.Whole(rows.labels[i], value)
+		if i < len(rows.fields) && rows.fields[i].label != "" {
+			cleaned = rd.Whole(rows.fields[i].label, value, rows.fields[i].maxLen)
 		}
 		if cleaned != value {
 			fields[i] = copyEscaper.Replace(cleaned)

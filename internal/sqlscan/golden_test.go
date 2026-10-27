@@ -62,7 +62,7 @@ func goldenColumns() *sqlscan.Columns {
 // survivors are fixture values that must not appear in cleaned output.
 func survivors() []string {
 	return []string{
-		"alice@", "bob@", "carys@", "Brien", "Bobby", "Llŷr", "07700", "Heol y Frenhines", "Mill Lane", "CF10", "SW1A",
+		"alice@", "bob@", "carys@", "Brien", "Bobby", "Llŷr", "900123", "900456", "Heol y Frenhines", "Mill Lane", "CF10", "SW1A",
 		"$2y$", "4242 4242", "198.51.100.23", "203.0.113.9", "2001:db8::7", "sk_live_", "YTo",
 		sqltest.Fake(60, 8), sqltest.Fake(60, 9), sqltest.Hex(64, 1), sqltest.Hex(64, 2), sqltest.Fake(40, 4), sqltest.Fake(40, 6),
 	}
@@ -86,44 +86,75 @@ func cleanDump(tb testing.TB, d sqltest.Dialect, rd sqlscan.Redactor, cols *sqls
 	return out.String()
 }
 
-// TestGolden cleans each fixture with the default rules and columns,
-// compares the result with its .golden file, and checks the output is still
-// a valid dump (for SQLite, that it imports). Run with -update to accept new output,
-// then review the diff.
+// TestGolden cleans each fixture with the default rules and columns, in
+// placeholder and fake mode, compares the result with its .golden or
+// .fake.golden file, and checks the output is still a valid dump (for
+// SQLite, that it imports). Run with -update to accept new output, then
+// review the diff.
 func TestGolden(t *testing.T) {
 	t.Parallel()
 
 	det := newDetector(t)
 	for _, name := range sqltest.Fixtures() {
 		d, _ := sqltest.DialectOf(name)
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
+		for _, mode := range []string{"placeholder", "fake"} {
+			t.Run(name+"/"+mode, func(t *testing.T) {
+				t.Parallel()
 
-			got := cleanDump(t, d, newRedactor(t, det), goldenColumns(), sqltest.Fixture(t, name))
-			golden := filepath.Join("testdata", name+".golden")
-
-			if *update {
-				if err := os.WriteFile(golden, []byte(got), 0o600); err != nil {
-					t.Fatal(err)
+				rd, golden := newRedactor(t, det), filepath.Join("testdata", name+".golden")
+				if mode == "fake" {
+					rd, golden = detect.NewRedactor(det, replace.NewFakes()), filepath.Join("testdata", name+".fake.golden")
 				}
-			}
-			want, err := os.ReadFile(golden)
-			if err != nil {
-				t.Fatalf("%v (run go test ./internal/sqlscan -run TestGolden -update)", err)
-			}
-			if got != string(want) {
-				t.Errorf("output differs from %s:\n%s", golden, got)
-			}
+				got := cleanDump(t, d, rd, goldenColumns(), sqltest.Fixture(t, name))
 
-			if err := sqltest.Check(d, got); err != nil {
-				t.Errorf("cleaned dump is not valid %s: %v", d, err)
-			}
-			for _, s := range survivors() {
-				if strings.Contains(got, s) {
-					t.Errorf("%q survived cleaning", s)
+				if *update {
+					if err := os.WriteFile(golden, []byte(got), 0o600); err != nil {
+						t.Fatal(err)
+					}
 				}
-			}
-		})
+				want, err := os.ReadFile(golden)
+				if err != nil {
+					t.Fatalf("%v (run go test ./internal/sqlscan -run TestGolden -update)", err)
+				}
+				if got != string(want) {
+					t.Errorf("output differs from %s:\n%s", golden, got)
+				}
+
+				if err := sqltest.Check(d, got); err != nil {
+					t.Errorf("cleaned dump is not valid %s: %v", d, err)
+				}
+				for _, s := range survivors() {
+					if strings.Contains(got, s) {
+						t.Errorf("%q survived cleaning", s)
+					}
+				}
+			})
+		}
+	}
+}
+
+// TestFakeSQLiteJoinsOnEmail imports the SQLite fixture cleaned in fake
+// mode and checks orders still join to their users on email, as they did
+// before cleaning, while the real addresses are gone.
+func TestFakeSQLiteJoinsOnEmail(t *testing.T) {
+	t.Parallel()
+
+	got := cleanDump(t, sqltest.SQLite, detect.NewRedactor(newDetector(t), replace.NewFakes()), goldenColumns(), sqltest.Fixture(t, "sqlite.sql"))
+	db, err := sqltest.OpenSQLite(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	var joined, realAddresses int
+	if err := db.QueryRow(`SELECT count(*) FROM orders o JOIN users u ON u.email = o.billing_email`).Scan(&joined); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(`SELECT count(*) FROM users WHERE email NOT LIKE '%@example.invalid'`).Scan(&realAddresses); err != nil {
+		t.Fatal(err)
+	}
+	if joined != 3 || realAddresses != 0 {
+		t.Errorf("orders joined on email = %d (want 3), users with a real address = %d (want 0)", joined, realAddresses)
 	}
 }
 
@@ -132,24 +163,30 @@ func TestGeneratedDumpsStayValid(t *testing.T) {
 
 	det := newDetector(t)
 	for d := range cleaners {
-		t.Run(string(d), func(t *testing.T) {
-			t.Parallel()
+		for _, mode := range []string{"placeholder", "fake"} {
+			t.Run(string(d)+"/"+mode, func(t *testing.T) {
+				t.Parallel()
 
-			var dump strings.Builder
-			if err := sqltest.WriteDump(&dump, d, 300); err != nil {
-				t.Fatal(err)
-			}
-			got := cleanDump(t, d, newRedactor(t, det), sqlscan.NewColumns(nil, nil), dump.String())
-
-			if err := sqltest.Check(d, got); err != nil {
-				t.Errorf("cleaned dump is not valid %s: %v", d, err)
-			}
-			for _, s := range []string{"@shop.test", "203.0.113.", "YTo"} {
-				if strings.Contains(got, s) {
-					t.Errorf("%q survived cleaning", s)
+				var dump strings.Builder
+				if err := sqltest.WriteDump(&dump, d, 300); err != nil {
+					t.Fatal(err)
 				}
-			}
-		})
+				rd := newRedactor(t, det)
+				if mode == "fake" {
+					rd = detect.NewRedactor(det, replace.NewFakes())
+				}
+				got := cleanDump(t, d, rd, sqlscan.NewColumns(nil, nil), dump.String())
+
+				if err := sqltest.Check(d, got); err != nil {
+					t.Errorf("cleaned dump is not valid %s: %v", d, err)
+				}
+				for _, s := range []string{"@shop.test", "203.0.113.", "YTo"} {
+					if strings.Contains(got, s) {
+						t.Errorf("%q survived cleaning", s)
+					}
+				}
+			})
+		}
 	}
 }
 
@@ -221,8 +258,8 @@ func BenchmarkClean(b *testing.B) {
 // state grows with distinct values by design.
 type constant struct{}
 
-func (constant) Redact(s string) string   { return strings.ReplaceAll(s, "@", "<EMAIL_1>") }
-func (constant) Whole(_, _ string) string { return "<X_1>" }
+func (constant) Redact(s string) string          { return strings.ReplaceAll(s, "@", "<EMAIL_1>") }
+func (constant) Whole(_, _ string, _ int) string { return "<X_1>" }
 
 // gcWriter discards output, forcing a collection every 512 KiB written and
 // recording the peak live heap.
@@ -287,5 +324,16 @@ func TestCleanMySQLMatchesTextRules(t *testing.T) {
 	again := sqlscan.CleanMySQL(&out, strings.NewReader(want), newRedactor(t, newDetector(t)), sqlscan.NewColumns(nil, nil), sqlscan.Options{})
 	if again != nil || out.String() != want {
 		t.Errorf("cleaning cleaned output changed it: %q, %v", out.String(), again)
+	}
+}
+
+func TestFakesFitTheirColumn(t *testing.T) {
+	t.Parallel()
+
+	in := "CREATE TABLE `t` (`email` varchar(12), `phone` varchar(255));\nINSERT INTO `t` VALUES ('alice@shop.test','07700 900123');"
+	want := "CREATE TABLE `t` (`email` varchar(12), `phone` varchar(255));\nINSERT INTO `t` VALUES ('user1@exampl','07700 900001');"
+	got := cleanDump(t, sqltest.MySQL, detect.NewRedactor(newDetector(t), replace.NewFakes()), sqlscan.NewColumns(nil, nil), in)
+	if got != want {
+		t.Errorf("got  %s\nwant %s", got, want)
 	}
 }

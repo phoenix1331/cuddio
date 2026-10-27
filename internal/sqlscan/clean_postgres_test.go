@@ -129,8 +129,8 @@ func TestCleanPostgres(t *testing.T) {
 // with one would.
 type lineBreaker struct{}
 
-func (lineBreaker) Redact(s string) string       { return strings.ReplaceAll(s, "x", "<\r\n>") }
-func (lineBreaker) Whole(_, value string) string { return value }
+func (lineBreaker) Redact(s string) string              { return strings.ReplaceAll(s, "x", "<\r\n>") }
+func (lineBreaker) Whole(_, value string, _ int) string { return value }
 
 func TestCleanPostgresRawCopyKeepsRows(t *testing.T) {
 	t.Parallel()

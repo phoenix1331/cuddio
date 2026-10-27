@@ -239,9 +239,17 @@ func TestHostFromOS(t *testing.T) {
 }
 
 // helper returns a Command that runs this test binary as a stand-in
-// clipboard tool doing mode.
-func helper(mode string) Command {
-	return Command{Name: os.Args[0], Args: []string{"-test.run=^TestHelperProcess$", "--", mode}, Env: []string{"CUDDIO_CLIPBOARD_HELPER=1", "LANG=en_US.UTF-8"}}
+// clipboard tool doing mode. os.Executable, not os.Args[0], which can be a
+// bare name that Windows will not look up in the current directory.
+func helper(t *testing.T, mode string) Command {
+	t.Helper()
+
+	self, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return Command{Name: self, Args: []string{"-test.run=^TestHelperProcess$", "--", mode}, Env: []string{"CUDDIO_CLIPBOARD_HELPER=1", "LANG=en_US.UTF-8"}}
 }
 
 // TestHelperProcess is not a test: Exec tests run the test binary with it
@@ -268,24 +276,24 @@ func TestHelperProcess(_ *testing.T) {
 func TestExec(t *testing.T) {
 	t.Parallel()
 
-	out, stderr, err := Exec(context.Background(), helper("echo"), "Llŷr ✓\r\n", true)
+	out, stderr, err := Exec(context.Background(), helper(t, "echo"), "Llŷr ✓\r\n", true)
 	if err != nil || out != "Llŷr ✓\r\n|en_US.UTF-8" || stderr != "" {
 		t.Errorf("Exec(echo) = %q, %q, %v", out, stderr, err)
 	}
 
-	out, stderr, err = Exec(context.Background(), helper("fail"), "", true)
+	out, stderr, err = Exec(context.Background(), helper(t, "fail"), "", true)
 	if err == nil || out != "" || stderr != "target STRING not available" {
 		t.Errorf("Exec(fail) = %q, %q, %v", out, stderr, err)
 	}
 
-	out, _, err = Exec(context.Background(), helper("linger"), "x", false)
+	out, _, err = Exec(context.Background(), helper(t, "linger"), "x", false)
 	if err != nil || out != "" {
 		t.Errorf("Exec(linger) without capture = %q, %v", out, err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if _, _, err := Exec(ctx, helper("echo"), "", true); err == nil {
+	if _, _, err := Exec(ctx, helper(t, "echo"), "", true); err == nil {
 		t.Error("Exec() with a cancelled context succeeded")
 	}
 }

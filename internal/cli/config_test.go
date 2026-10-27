@@ -31,7 +31,7 @@ func loadedConfig(t *testing.T, env Env) config.Config {
 	env.Stdout = &bytes.Buffer{}
 	env.Stderr = &bytes.Buffer{}
 	a := newApp(env)
-	a.root.SetArgs(env.Args)
+	a.root.SetArgs(append([]string{}, env.Args...))
 	if err := a.root.Execute(); err != nil {
 		t.Fatalf("Execute() error = %v", err)
 	}

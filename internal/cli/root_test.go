@@ -121,3 +121,14 @@ func TestUsageErrorsExitWithError(t *testing.T) {
 		})
 	}
 }
+
+func TestExecuteIgnoresProcessArguments(t *testing.T) {
+	t.Parallel()
+
+	// os.Args holds the test binary's flags; with no Args, cuddio must see
+	// no arguments, not those
+	got := execute(t, Env{Rules: testRules, Stdin: strings.NewReader("alice@shop.test\n")})
+	if got.code != exitOK || got.stdout != "<EMAIL_1>\n" {
+		t.Errorf("Execute with nil Args = %d %q %q", got.code, got.stdout, got.stderr)
+	}
+}

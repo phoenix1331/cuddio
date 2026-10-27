@@ -65,7 +65,9 @@ type app struct {
 // Execute runs the command line in env and returns the process exit code.
 func Execute(env Env) int {
 	a := newApp(env)
-	a.root.SetArgs(env.Args)
+	// Never nil: cobra reads os.Args when given nil, so a test's own flags
+	// would become cuddio's arguments
+	a.root.SetArgs(append([]string{}, env.Args...))
 
 	err := a.root.Execute()
 	if errors.Is(err, errFindings) {

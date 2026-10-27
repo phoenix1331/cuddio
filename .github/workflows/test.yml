@@ -22,7 +22,9 @@ jobs:
       matrix:
         # The latest two Go releases; go.mod's go line is the older one
         go: ['1.26.x', '1.27.x']
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        # Linux on every push; all three only when started by hand, while the
+        # repository is private and macOS and Windows minutes cost 10x and 2x
+        os: ${{ fromJSON(github.event_name == 'workflow_dispatch' && '["ubuntu-latest", "macos-latest", "windows-latest"]' || '["ubuntu-latest"]') }}
     defaults:
       run:
         shell: bash
@@ -47,7 +49,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        # As for the test job
+        os: ${{ fromJSON(github.event_name == 'workflow_dispatch' && '["ubuntu-latest", "macos-latest", "windows-latest"]' || '["ubuntu-latest"]') }}
     defaults:
       run:
         shell: bash

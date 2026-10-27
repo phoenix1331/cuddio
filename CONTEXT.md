@@ -28,6 +28,7 @@ First of a planned set of Welsh-named Go tools sharing one visual style for READ
 | `internal/config/` | Config schema, defaults, project file discovery, strict YAML decoding, per-file validation, merging, `CustomRules` compilation |
 | `scripts/check.sh` | The quality gate, run locally and in CI |
 | `scripts/e2e.sh` | End-to-end run of the built binary, locally and in CI's `e2e` job |
+| `scripts/test-windows.sh` | In WSL: every package's tests cross-compiled for Windows and run natively through interop |
 | `examples/` | Fake files for users to try, one command each in `examples/README.md`; `examples_test.go` at the root cleans every one with the real rules |
 | `.github/scripts/` | `check-archives.sh` (release archive allow list), `check-module-size.sh` (module zip budget), `e2e.ps1` (Windows PowerShell 5.1 checks) |
 | `.githooks/` | `commit-msg` and `pre-commit`, enabled with `git config core.hooksPath .githooks` |
@@ -85,7 +86,10 @@ First of a planned set of Welsh-named Go tools sharing one visual style for READ
 | Windows PowerShell 5.1 guidance in `--help`: name the file and use `-o`, not `|` or `>` | 5.1 re-encodes piped text with `$OutputEncoding` (ASCII by default) and writes `>` as UTF-16 |
 | `.gitattributes` marks `**/testdata/** -text` | `testdata/**` only matched a root `testdata/`, so `internal/*/testdata` fixtures were `text=auto` and a CR byte in one would have been normalised away |
 | `scripts/e2e.sh` (POSIX, Git Bash on Windows) builds the binary and runs every command with exit codes and output checked, with `HOME`, XDG, `APPDATA` and `LOCALAPPDATA` in a temp dir; `.github/scripts/e2e.ps1` adds Windows PowerShell 5.1 checks; CI job `e2e` on all three OSes | Proves the shipped binary, not just packages, on each platform; never touches a developer's own config or mappings |
-| Both workflows have `workflow_dispatch` | A run can be started without a push |
+| Both workflows have `workflow_dispatch`; `test` and `e2e` run Linux only on push and pull request, all three OSes only when started by hand | The repository is private until release, where macOS minutes cost 10x and Windows 2x; one month's allowance went in a day. Revisit once public, when standard runners are free |
+| Windows checked locally with `scripts/test-windows.sh` (no `-race`: cross-compiling it needs cgo; the three no-network tests skipped: they need the `go` command); macOS on a family Mac | Real Windows APIs and file system without CI minutes or changing PowerShell's execution policy |
+| `Execute` always passes cobra a non-nil argument list | Given nil, cobra reads `os.Args`; found when a Windows test binary's `-test.skip` pattern became cuddio's input file |
+| The clipboard helper process runs `os.Executable()`, not `os.Args[0]` | `os.Args[0]` can be a bare name, which Windows `exec` will not look up in the current directory |
 | Dependabot ignores `github.com/pingcap/tidb/pkg/parser`; bump its pseudo-version by hand (`/1331-compat`) | It has no semver tags, so Dependabot picks the parent repo's `v2.1.0-rc.5+incompatible`, which lacks the package, and the grouped Go update failed every week |
 | Mapping store: a file where its folder should be is an error ("the cache path is a file, not a folder") on every platform | Found by Windows CI: listing a file there reports "not found", so the store read as empty and `--map` wrote output before failing to save |
 | Example secrets are generic shapes (bearer tokens, cookies, DSN and `.env` passwords, `APP_KEY`, secret JSON fields, token query parameters) plus AWS's documentation keys, never vendor live formats; SQL examples are the fixtures expanded once, with `sk_live_` swapped for a generic value and emails moved to `example.com` | GitHub push protection rejects live-format provider keys in static files; the AWS keys show the allowlist leaving documented examples alone |
@@ -194,7 +198,7 @@ Tools (not module dependencies): golangci-lint v2.15, govulncheck, GoReleaser v2
 
 | Workflow | Runs |
 |---|---|
-| `test.yml` | `scripts/check.sh` on Go 1.26 and 1.27 x Linux, macOS, Windows (`shell: bash`); `scripts/e2e.sh` on all three (plus `e2e.ps1` on Windows); module size check, GoReleaser snapshot and `check-archives.sh` |
+| `test.yml` | `scripts/check.sh` on Go 1.26 and 1.27 and `scripts/e2e.sh`: Linux on push and pull request, plus macOS and Windows (and `e2e.ps1`) when started by hand; module size check, GoReleaser snapshot and `check-archives.sh` |
 | `govulncheck.yml` | Every push, every pull request, weekly |
 | `.github/dependabot.yml` | Weekly, Go modules and Actions, one grouped PR each |
 

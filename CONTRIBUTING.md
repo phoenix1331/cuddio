@@ -33,7 +33,9 @@ git config core.hooksPath .githooks   # activates the git hooks
 
 The tests include a no-network check: they fail if the build gains a network package or if any dial, listen or HTTP code is linked into the binary.
 
-`sh scripts/e2e.sh` builds the binary and runs every command on generated input, checking output and exit codes. It points the config and cache folders at a temporary directory, so your own settings and stored mappings are never touched. CI runs it on Linux, macOS and Windows (Git Bash), plus `.github/scripts/e2e.ps1` under Windows PowerShell 5.1.
+`sh scripts/e2e.sh` builds the binary and runs every command on generated input, checking output and exit codes. It points the config and cache folders at a temporary directory, so your own settings and stored mappings are never touched. CI runs it on Linux, plus macOS and Windows (Git Bash, and `.github/scripts/e2e.ps1` under Windows PowerShell 5.1) when the workflow is started by hand.
+
+In WSL, `sh scripts/test-windows.sh` runs every package's tests as native Windows programs: each test binary is cross-compiled for Windows and started through WSL's Windows interop, so Windows behaviour can be checked without CI.
 
 ## Git hooks
 

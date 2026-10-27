@@ -2,6 +2,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"runtime/debug"
@@ -15,8 +16,9 @@ import (
 )
 
 const (
-	exitOK    = 0
-	exitError = 2
+	exitOK       = 0
+	exitFindings = 1
+	exitError    = 2
 )
 
 const longHelp = `cuddio hides secrets and PII (personally identifiable information) in logs,
@@ -62,7 +64,11 @@ func Execute(env Env) int {
 	a := newApp(env)
 	a.root.SetArgs(env.Args)
 
-	if err := a.root.Execute(); err != nil {
+	err := a.root.Execute()
+	if errors.Is(err, errFindings) {
+		return exitFindings
+	}
+	if err != nil {
 		fmt.Fprintf(env.Stderr, "cuddio: %v\n", err)
 		return exitError
 	}
@@ -108,9 +114,11 @@ func newApp(env Env) *app {
 
 	cmd.PersistentFlags().StringVar(&configPath, "config", "", "use this config file instead of the nearest "+config.ProjectFile)
 	addIOFlags(cmd, &flags.ioFlags)
+	cmd.Flags().BoolVar(&flags.check, "check", false, "print how many values would be hidden, not the cleaned text; exit 1 if any (for CI)")
+	cmd.Flags().BoolVar(&flags.report, "report", false, "print how many values each rule would hide, not the cleaned text")
 	cmd.Flags().BoolVar(&flags.mapping, "map", false, "store the placeholder mapping (owner-only, expires) so restore can put the real values back")
 	cmd.Flags().StringVar(&flags.mode, "mode", "", "placeholder (<EMAIL_1>, reversible) or fake (realistic fake values, so a dump still imports); default from config, else placeholder")
-	cmd.AddCommand(a.newRestoreCmd(), a.newForgetCmd())
+	cmd.AddCommand(a.newRestoreCmd(), a.newForgetCmd(), a.newRulesCmd())
 	cmd.SetVersionTemplate("cuddio {{.Version}}\n")
 	cmd.SetIn(env.Stdin)
 	cmd.SetOut(env.Stdout)

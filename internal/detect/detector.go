@@ -53,7 +53,7 @@ func (d *Detector) Find(s string) []replace.Match {
 			if value == "" || !rule.Accepts(value) || d.allows(value) {
 				continue
 			}
-			matches = append(matches, replace.Match{Start: start, End: end, Label: rule.Label, Priority: priority})
+			matches = append(matches, replace.Match{Start: start, End: end, Label: rule.Label, Priority: priority, RuleID: rule.ID})
 		}
 	}
 

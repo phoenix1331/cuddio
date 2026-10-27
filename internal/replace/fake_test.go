@@ -166,7 +166,7 @@ func TestApply(t *testing.T) {
 
 	f := NewFakes()
 	s := "mail alice@shop.test or bob@shop.test"
-	got := Apply(s, spans(s, map[string]string{"alice@shop.test": "EMAIL", "bob@shop.test": "EMAIL"}), f.Token)
+	got := Apply(s, spans(s, map[string]string{"alice@shop.test": "EMAIL", "bob@shop.test": "EMAIL"}), func(m Match, value string) string { return f.Token(m.Label, value) })
 	if want := "mail user1@example.invalid or user2@example.invalid"; got != want {
 		t.Errorf("Apply() = %q, want %q", got, want)
 	}

@@ -7,9 +7,12 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
+	"text/tabwriter"
 
 	"github.com/phoenix1331/cuddio/internal/config"
 	"github.com/phoenix1331/cuddio/internal/detect"
@@ -39,6 +42,8 @@ type cleanFlags struct {
 	ioFlags
 	mode    string
 	mapping bool
+	check   bool
+	report  bool
 }
 
 // job is one run over an input: the file (empty for stdin), how to read it
@@ -53,6 +58,8 @@ type job struct {
 	private bool
 	// changed and unchanged report a --clip run that wrote nothing else.
 	changed, unchanged string
+	// discard drops the output, for --check and --report.
+	discard bool
 }
 
 // newJob checks the flags for args. Nothing is opened yet.
@@ -100,10 +107,23 @@ func (a *app) clean(args []string, flags cleanFlags) error {
 	if flags.mapping && mode == config.ModeFake {
 		return errors.New("--map needs placeholder mode: fake values cannot be restored")
 	}
+	counting := flags.check || flags.report
+	if counting && (j.flags.output != "" || flags.mapping) {
+		return errors.New("--check and --report print counts only, so they take no --output or --map")
+	}
 
 	detector, err := a.detector()
 	if err != nil {
 		return err
+	}
+	if counting {
+		j.discard = true
+		// Counts do not depend on what replaces each value
+		rd := detect.NewRedactor(detector, replace.NewFakes())
+		if err := a.run(j, rd); err != nil {
+			return err
+		}
+		return a.printCounts(rd.Counts(), flags.check, flags.report)
 	}
 	if mode == config.ModeFake {
 		return a.run(j, detect.NewRedactor(detector, replace.NewFakes()))
@@ -159,6 +179,9 @@ func (a *app) run(j job, rd sqlscan.Redactor) error {
 	if err != nil {
 		return err
 	}
+	if j.discard {
+		return write(io.Discard)
+	}
 	if j.flags.output == "" {
 		return write(a.env.Stdout)
 	}
@@ -183,6 +206,9 @@ func (a *app) runClipboard(j job, rd sqlscan.Redactor) error {
 	write, err := a.writer(j.format, j.dialect, strings.NewReader(text), rd)
 	if err != nil {
 		return err
+	}
+	if j.discard {
+		return write(io.Discard)
 	}
 	if j.flags.output != "" {
 		return writeOutput(j.flags.output, j.flags.force, nil, write)
@@ -232,20 +258,72 @@ func (a *app) writer(format string, dialect sqlscan.Dialect, in io.Reader, rd sq
 	}, nil
 }
 
-// detector builds the run's rule set and allowlist from the rules and
-// config.
-func (a *app) detector() (*detect.Detector, error) {
+// errFindings is returned by --check when something would be hidden; it
+// sets exit code 1 and prints nothing more.
+var errFindings = errors.New("values would be hidden")
+
+// printCounts writes --report's table of counts by rule ID and --check's
+// total. Only rule IDs, column labels and numbers are printed, never
+// values.
+func (a *app) printCounts(counts map[string]int, check, report bool) error {
+	total := 0
+	for _, n := range counts {
+		total += n
+	}
+	if report {
+		tw := tabwriter.NewWriter(a.env.Stdout, 0, 0, 2, ' ', 0)
+		fmt.Fprintln(tw, "RULE\tCOUNT")
+		for _, id := range slices.Sorted(maps.Keys(counts)) {
+			fmt.Fprintf(tw, "%s\t%d\n", id, counts[id])
+		}
+		fmt.Fprintf(tw, "total\t%d\n", total)
+		if err := tw.Flush(); err != nil {
+			return err
+		}
+	}
+	if !check {
+		return nil
+	}
+	if total == 0 {
+		_, err := fmt.Fprintln(a.env.Stdout, "nothing to hide")
+		return err
+	}
+	noun := "values"
+	if total == 1 {
+		noun = "value"
+	}
+	if _, err := fmt.Fprintf(a.env.Stdout, "%d %s would be hidden\n", total, noun); err != nil {
+		return err
+	}
+
+	return errFindings
+}
+
+// rules returns every rule cuddio knows (built-in, vendored and custom from
+// config) and the ones config turns on, both in registry order.
+func (a *app) rules() (all, selected []detect.Rule, err error) {
 	custom, err := config.CustomRules(a.config.Rules.Custom)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	registry, err := detect.NewRegistry(detect.WithCustom(a.env.Rules, custom))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	selected, err := registry.Select(a.config.Rules.Enable, a.config.Rules.Disable)
+	selected, err = registry.Select(a.config.Rules.Enable, a.config.Rules.Disable)
 	if err != nil {
-		return nil, fmt.Errorf("rules: %w", err)
+		return nil, nil, fmt.Errorf("rules: %w", err)
+	}
+
+	return registry.Rules(), selected, nil
+}
+
+// detector builds the run's rule set and allowlist from the rules and
+// config.
+func (a *app) detector() (*detect.Detector, error) {
+	_, selected, err := a.rules()
+	if err != nil {
+		return nil, err
 	}
 	allow, err := detect.NewAllowlist(a.config.Allowlist.Values, a.config.Allowlist.Patterns)
 	if err != nil {

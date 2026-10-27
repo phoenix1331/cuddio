@@ -1,6 +1,7 @@
 package detect
 
 import (
+	"reflect"
 	"regexp"
 	"testing"
 
@@ -37,5 +38,36 @@ func TestRedactor(t *testing.T) {
 		if got := r.Whole(tt.label, tt.value, 0); got != tt.want {
 			t.Errorf("Whole(%q, %q) = %q, want %q", tt.label, tt.value, got, tt.want)
 		}
+	}
+}
+
+func TestRedactorCounts(t *testing.T) {
+	t.Parallel()
+
+	allow, err := NewAllowlist([]string{"ok@shop.test"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	email := Rule{ID: "email", Category: PII, Label: "EMAIL", Pattern: regexp.MustCompile(`[a-z]+@[a-z.]+`)}
+	p, err := replace.NewPlaceholders(replace.DefaultFormat)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := NewRedactor(NewDetector([]Rule{email}, allow), p)
+
+	r.Redact("a@shop.test, a@shop.test and ok@shop.test")
+	r.Whole("EMAIL", "b@shop.test", 0)
+	r.Whole("BILLING_NAME", "Alice", 0)
+	r.Whole("EMAIL", "", 0)
+	r.Whole("EMAIL", "ok@shop.test", 0)
+
+	want := map[string]int{"email": 2, "column:email": 1, "column:billing_name": 1}
+	got := r.Counts()
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Counts() = %v, want %v", got, want)
+	}
+	got["email"] = 99
+	if r.Counts()["email"] != 2 {
+		t.Error("Counts() returned the redactor's own map")
 	}
 }

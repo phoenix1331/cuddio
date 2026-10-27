@@ -262,33 +262,58 @@ func BenchmarkClean(b *testing.B) {
 	}
 }
 
-// TestCleanMemoryIsBounded streams three times more log than the heap may
-// grow by, after a warm-up run has allocated the line buffer and regexp
-// caches. HeapSys only grows, so after the run it reflects the peak. Kept
-// small because the race detector slows matching about tenfold.
+// gcWriter discards output, forcing a collection every 512 KiB written and
+// recording the peak live heap.
+type gcWriter struct {
+	written, next, peak uint64
+}
+
+func (w *gcWriter) Write(p []byte) (int, error) {
+	w.written += uint64(len(p))
+	if w.written >= w.next {
+		w.next += 512 << 10
+		var stats runtime.MemStats
+		runtime.GC()
+		runtime.ReadMemStats(&stats)
+		w.peak = max(w.peak, stats.HeapAlloc)
+	}
+
+	return len(p), nil
+}
+
+// TestCleanMemoryIsBounded streams three times more log than the live heap
+// may grow by, after a warm-up run has allocated the line buffer and regexp
+// caches. It samples the live heap, as the SQL memory tests do: total heap
+// size mostly measures garbage between collections, which made this test
+// flaky. The bound allows for the line buffer (DefaultMaxLine), which is
+// live for the whole run, plus 1 MiB. Kept small because the race detector
+// slows matching about tenfold.
 func TestCleanMemoryIsBounded(t *testing.T) {
 	const (
 		warmUp    = 256 << 10
 		size      = 3 << 20
-		maxGrowth = 1 << 20
+		maxGrowth = textscan.DefaultMaxLine + 1<<20
 	)
 
 	lines := logLines(t)
 	redact := newRedactor(t, newDetector(t))
-	run := func(n int) {
-		if err := textscan.Clean(io.Discard, &logReader{lines: lines, left: n}, redact, textscan.Options{}); err != nil {
-			t.Fatal(err)
-		}
+	if err := textscan.Clean(io.Discard, &logReader{lines: lines, left: warmUp}, redact, textscan.Options{}); err != nil {
+		t.Fatal(err)
 	}
-	run(warmUp)
 
+	var stats runtime.MemStats
 	runtime.GC()
-	var before, after runtime.MemStats
-	runtime.ReadMemStats(&before)
-	run(size)
-	runtime.ReadMemStats(&after)
+	runtime.ReadMemStats(&stats)
+	baseline := stats.HeapAlloc
 
-	if growth := int64(after.HeapSys) - int64(before.HeapSys); growth > maxGrowth {
-		t.Errorf("heap grew by %d KiB cleaning %d MiB, want at most %d KiB", growth>>10, size>>20, maxGrowth>>10)
+	w := &gcWriter{}
+	if err := textscan.Clean(w, &logReader{lines: lines, left: size}, redact, textscan.Options{}); err != nil {
+		t.Fatal(err)
+	}
+
+	growth := int64(w.peak) - int64(baseline)
+	t.Logf("live heap grew by %d KiB cleaning %d MiB", growth>>10, size>>20)
+	if growth > maxGrowth {
+		t.Errorf("live heap grew by %d KiB cleaning %d MiB, want at most %d KiB", growth>>10, size>>20, maxGrowth>>10)
 	}
 }

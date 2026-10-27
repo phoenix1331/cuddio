@@ -147,13 +147,14 @@ func (p *Placeholders) Fit(token string, _ int) string {
 
 // Replace swaps the chosen matches in s for placeholders (see Apply).
 func (p *Placeholders) Replace(s string, matches []Match) string {
-	return Apply(s, matches, p.Token)
+	return Apply(s, matches, func(m Match, value string) string { return p.Token(m.Label, value) })
 }
 
-// Apply swaps the chosen matches in s for what token returns for each.
+// Apply swaps the chosen matches in s for what token returns for each,
+// given the match and the text it covers.
 // Overlaps are resolved first (see Resolve), and tokens are handed out left
 // to right, so numbering follows reading order.
-func Apply(s string, matches []Match, token func(label, value string) string) string {
+func Apply(s string, matches []Match, token func(m Match, value string) string) string {
 	chosen := Resolve(s, matches)
 	if len(chosen) == 0 {
 		return s
@@ -164,7 +165,7 @@ func Apply(s string, matches []Match, token func(label, value string) string) st
 	last := 0
 	for _, m := range chosen {
 		b.WriteString(s[last:m.Start])
-		b.WriteString(token(m.Label, s[m.Start:m.End]))
+		b.WriteString(token(m, s[m.Start:m.End]))
 		last = m.End
 	}
 	b.WriteString(s[last:])

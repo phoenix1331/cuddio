@@ -12,6 +12,8 @@ type Match struct {
 	Label      string
 	// Priority is the rule's position in the registry; lower wins a tie.
 	Priority int
+	// RuleID names the rule that found the span, for reports.
+	RuleID string
 }
 
 // Resolve picks non-overlapping matches from candidates and returns them in

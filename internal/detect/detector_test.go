@@ -29,28 +29,28 @@ func TestDetectorFind(t *testing.T) {
 	}{
 		{"no rules", nil, nil, "alice@shop.test", nil},
 		{"every occurrence", []Rule{email}, nil, "a@b.c and d@e.f", []replace.Match{
-			{Start: 0, End: 5, Label: "EMAIL"},
-			{Start: 10, End: 15, Label: "EMAIL"},
+			{Start: 0, End: 5, Label: "EMAIL", RuleID: "email"},
+			{Start: 10, End: 15, Label: "EMAIL", RuleID: "email"},
 		}},
 		{"allowlisted value skipped", []Rule{email}, allow, "ok@example.org bob@shop.test", []replace.Match{
-			{Start: 15, End: 28, Label: "EMAIL"},
+			{Start: 15, End: 28, Label: "EMAIL", RuleID: "email"},
 		}},
 		{"nil allowlist permits nothing", []Rule{email}, nil, "ok@example.org", []replace.Match{
-			{Start: 0, End: 14, Label: "EMAIL"},
+			{Start: 0, End: 14, Label: "EMAIL", RuleID: "email"},
 		}},
 		{"validator rejects", []Rule{card}, nil, "4111111111111112 4111111111111111", []replace.Match{
-			{Start: 17, End: 33, Label: "CARD"},
+			{Start: 17, End: 33, Label: "CARD", RuleID: "card"},
 		}},
 		{"priority is the rule's position", []Rule{email, card}, nil, "4111111111111111 x@y.z", []replace.Match{
-			{Start: 17, End: 22, Label: "EMAIL"},
-			{Start: 0, End: 16, Label: "CARD", Priority: 1},
+			{Start: 17, End: 22, Label: "EMAIL", RuleID: "email"},
+			{Start: 0, End: 16, Label: "CARD", Priority: 1, RuleID: "card"},
 		}},
 		{"empty matches ignored", []Rule{digits}, nil, "a1b", []replace.Match{
-			{Start: 1, End: 2, Label: "NUM"},
+			{Start: 1, End: 2, Label: "NUM", RuleID: "digits"},
 		}},
 		{"first value group", []Rule{assign}, nil, `PASS=hunter2 PASS="two words"`, []replace.Match{
-			{Start: 5, End: 12, Label: "SECRET"},
-			{Start: 19, End: 28, Label: "SECRET"},
+			{Start: 5, End: 12, Label: "SECRET", RuleID: "assign"},
+			{Start: 19, End: 28, Label: "SECRET", RuleID: "assign"},
 		}},
 		{"empty value group ignored", []Rule{assign}, nil, `PASS=""`, nil},
 		{"validator sees the value group", []Rule{assign}, nil, `PASS=null`, nil},

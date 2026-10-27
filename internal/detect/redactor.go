@@ -1,6 +1,7 @@
 package detect
 
 import (
+	"maps"
 	"strings"
 
 	"github.com/phoenix1331/cuddio/internal/replace"
@@ -30,17 +31,30 @@ type reserver interface {
 type Redactor struct {
 	detector *Detector
 	tokens   Tokens
+	// counts holds replacements made so far, by rule ID, or "column:" and
+	// the label for whole sensitive-column values.
+	counts map[string]int
 }
 
 // NewRedactor returns a redactor for one run.
 func NewRedactor(d *Detector, t Tokens) *Redactor {
-	return &Redactor{detector: d, tokens: t}
+	return &Redactor{detector: d, tokens: t, counts: map[string]int{}}
 }
 
 // Redact replaces everything the detector finds in s.
 func (r *Redactor) Redact(s string) string {
 	r.reserve(s)
-	return replace.Apply(s, r.detector.Find(s), r.tokens.Token)
+	return replace.Apply(s, r.detector.Find(s), func(m replace.Match, value string) string {
+		r.counts[m.RuleID]++
+		return r.tokens.Token(m.Label, value)
+	})
+}
+
+// Counts returns how many values have been replaced, by rule ID, with
+// whole sensitive-column values under "column:" and their label in lower
+// case. It never holds the values themselves.
+func (r *Redactor) Counts() map[string]int {
+	return maps.Clone(r.counts)
 }
 
 // Whole replaces all of value with a token labelled label, fitted to
@@ -53,6 +67,7 @@ func (r *Redactor) Whole(label, value string, maxLen int) string {
 		return value
 	}
 
+	r.counts["column:"+strings.ToLower(label)]++
 	return r.tokens.Fit(r.tokens.Token(label, value), maxLen)
 }
 

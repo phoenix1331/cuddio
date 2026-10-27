@@ -22,7 +22,7 @@ First of a planned set of Welsh-named Go tools sharing one visual style for READ
 | `internal/sqltest/` | Test support only: Laravel-shaped fixture dumps (`testdata/sql/`, embedded), `WriteDump` for large generated dumps, `Check` for MySQL, PostgreSQL and SQLite validity, `OpenSQLite` |
 | `internal/sqlscan/` | Streaming tokeniser for MySQL, PostgreSQL and SQLite (`NewMySQL`, `NewPostgres`, `NewSQLite`, `Token`, `Value`); `Clean` and per-dialect `CleanX` over one loop; statement and column tracking (`statement.go`); `Columns` (sensitive column names and labels); `Detect` and `ParseDialect` (`detect.go`); golden output in `testdata/`, fuzz regressions in `testdata/fuzz/` |
 | `internal/replace/` | `Placeholders` and `Fakes` (consistent within a run), `Apply` and overlap resolution |
-| `internal/mapstore/` | Local mapping store, `0600` files with TTL (planned) |
+| `internal/mapstore/` | Session mapping for restore: `mapping.json` in `os.UserCacheDir()/cuddio`, `Load`, `Save`, `Forget`, TTL on an injected clock |
 | `internal/clipboard/` | Clipboard access including WSL (planned) |
 | `internal/names/` | Nearest known name within two edits, for "did you mean" hints that never echo anything further away |
 | `internal/config/` | Config schema, defaults, project file discovery, strict YAML decoding, per-file validation, merging, `CustomRules` compilation |
@@ -60,6 +60,13 @@ First of a planned set of Welsh-named Go tools sharing one visual style for READ
 | Generators wrap after their range (15,000 phones, 762 IPv4s, 400 names, a handful of cards); a fake equal to its value is skipped for the next | Bounded tables, deterministic output; past the range, distinct values may share a fake, which only weakens joins. Found by the golden test: the fixture's card is the first test card |
 | `CREATE TABLE` `char`/`varchar`/`character varying` lengths are recorded; `Fakes.Fit` cuts a whole-value fake to that many characters; placeholders are never cut | Strict-mode MySQL and PostgreSQL reject over-long values; restore needs placeholders whole |
 | Fake mode cannot be restored | One fake (`REDACTED`) can stand for many values; `restore` works on placeholders |
+| One session file, `mapping.json`, replaced whole on each save | A later `--map` run can carry on the same numbering, so a log and a dump pasted into one chat never share a token |
+| TTL counts from the last save, stored in the file (`saved_at`), not the file's mtime; a mapping saved "in the future" stays live until its TTL passes | Tests drive expiry with an injected clock; a file's mtime can be changed by copying or backup tools |
+| Every `Load` and `Save` purges first: expired or corrupt `mapping.json`, and `.mapping-*` temp files over a minute old | Temp files from a crashed write hold real values; a minute leaves a concurrent run's write alone |
+| Corrupt file: deleted, `ErrCorrupt` with a fixed message, never the JSON error | `encoding/json` errors quote bytes of the file, which are real values |
+| Directory `0700` (narrowed if it already exists), file `0600` via `os.CreateTemp` then rename; Windows relies on the per-user ACL of `%LocalAppData%` | Go sets only the read-only bit on Windows; the tests assert modes on Unix and skip with that reason on Windows |
+| `mapping.disabled` makes `Save` return `ErrDisabled`; `Load` and `Forget` still work | A mapping saved before the policy changed can still be restored or deleted |
+| Not encrypted | Brief puts encryption out of scope for v0.1; owner-only permissions in the user's own cache directory, and a 1 hour default TTL |
 | `mapping.disabled` can be set by either file and unset by neither | A global "never store mappings" policy cannot be undone by a project file |
 | Strict YAML decoding; type errors rewritten to drop quoted values | Typos fail loudly; yaml's own messages quote the start of the bad value, which could be an allowlisted secret |
 | Errors repeat a name from config only as a near miss (two edits) of a real setting, rule or category; otherwise they give a line number or position. Quoted keys, anchors and non-core tags are dropped | A value typed in the wrong place (a secret as a key, in `enable`, as a rule ID) is never echoed; a shape check alone would pass lowercase hex keys |

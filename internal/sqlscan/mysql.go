@@ -20,10 +20,11 @@ type Options struct {
 	MaxToken int
 }
 
-// Tokenizer reads MySQL dump tokens from a stream. Only the token being read
+// Tokenizer reads SQL dump tokens from a stream. Only the token being read
 // is held in memory.
 type Tokenizer struct {
 	r        *bufio.Reader
+	dialect  dialect
 	maxToken int
 	line     int
 	text     strings.Builder
@@ -32,6 +33,15 @@ type Tokenizer struct {
 	// introducer is a pending _charset word that the next literal takes,
 	// if only whitespace and comments come between them.
 	introducer string
+
+	// PostgreSQL only: atLineStart is set after a line break, where a
+	// backslash starts a meta-command; copy follows the statement for COPY
+	// ... FROM stdin; copyPending is set from its ";" to the line break,
+	// and inCopy from there to the "\." line.
+	atLineStart bool
+	copy        copyTracker
+	copyPending bool
+	inCopy      bool
 }
 
 // NewMySQL returns a Tokenizer for MySQL and MariaDB dumps, with the default
@@ -42,7 +52,7 @@ func NewMySQL(r io.Reader, opts Options) *Tokenizer {
 		maxToken = DefaultMaxToken
 	}
 
-	return &Tokenizer{r: bufio.NewReaderSize(r, 64<<10), maxToken: maxToken, line: 1}
+	return &Tokenizer{r: bufio.NewReaderSize(r, 64<<10), maxToken: maxToken, line: 1, atLineStart: true}
 }
 
 // errTooLong is what read returns past MaxToken; Next adds the line.
@@ -69,10 +79,28 @@ func (t *Tokenizer) Next() (Token, error) {
 
 	tok.Text = t.text.String()
 	tok.Line = line
+	tok.dialect = t.dialect
 	t.line += strings.Count(tok.Text, "\n")
 	t.trackIntroducer(&tok)
+	if t.dialect == postgres {
+		t.trackPostgres(tok)
+	}
 
 	return tok, nil
+}
+
+// trackPostgres notes line starts and the start of COPY data after tok.
+func (t *Tokenizer) trackPostgres(tok Token) {
+	endsLine := strings.HasSuffix(tok.Text, "\n")
+	t.atLineStart = endsLine
+	switch tok.Kind {
+	case Whitespace, Comment, Meta, CopyData, CopyEnd:
+	default:
+		t.trackCopy(tok)
+	}
+	if t.copyPending && endsLine {
+		t.copyPending, t.inCopy = false, true
+	}
 }
 
 // trackIntroducer gives a literal the _charset word before it, and
@@ -93,7 +121,16 @@ func (t *Tokenizer) trackIntroducer(tok *Token) {
 }
 
 func (t *Tokenizer) scan(c byte) (Token, error) {
+	if t.dialect == postgres {
+		if tok, ok, err := t.scanPostgres(c); ok {
+			return tok, err
+		}
+	}
+
+	backslashes := t.dialect == mysql
 	switch {
+	case isSpace(c) && t.copyPending:
+		return Token{Kind: Whitespace}, t.spaceToLineEnd(c)
 	case isSpace(c):
 		return Token{Kind: Whitespace}, t.while(isSpace)
 	case c == '#':
@@ -106,7 +143,7 @@ func (t *Tokenizer) scan(c byte) (Token, error) {
 		t.inDirective = false
 		return Token{Kind: DirectiveEnd}, t.take(1)
 	case c == '\'' || c == '"':
-		unterminated, err := t.quoted(c, true)
+		unterminated, err := t.quoted(c, backslashes)
 		return Token{Kind: String, Unterminated: unterminated}, err
 	case c == '`':
 		unterminated, err := t.quoted(c, false)
@@ -243,7 +280,7 @@ func (t *Tokenizer) word(first byte) (Token, error) {
 			if err := t.take(1); err != nil {
 				return Token{}, err
 			}
-			unterminated, err := t.quoted('\'', true)
+			unterminated, err := t.quoted('\'', t.dialect == mysql)
 			return Token{Kind: String, Charset: "N", Unterminated: unterminated}, err
 		}
 	}

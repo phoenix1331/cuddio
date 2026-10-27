@@ -68,98 +68,147 @@ func survivors() []string {
 	}
 }
 
-// TestMySQLGolden cleans the MySQL fixture with the default rules and
-// columns, compares the result with its .golden file, and checks the output
-// is still a valid dump. Run with -update to accept new output, then review
-// the diff.
-func TestMySQLGolden(t *testing.T) {
+// cleaners are the dialects CleanX functions, by sqltest dialect.
+var cleaners = map[sqltest.Dialect]func(io.Writer, io.Reader, sqlscan.Redactor, *sqlscan.Columns, sqlscan.Options) error{
+	sqltest.MySQL:    sqlscan.CleanMySQL,
+	sqltest.Postgres: sqlscan.CleanPostgres,
+}
+
+func cleanDump(tb testing.TB, d sqltest.Dialect, rd sqlscan.Redactor, cols *sqlscan.Columns, in string) string {
+	tb.Helper()
+
+	var out bytes.Buffer
+	if err := cleaners[d](&out, strings.NewReader(in), rd, cols, sqlscan.Options{}); err != nil {
+		tb.Fatalf("clean %s: %v", d, err)
+	}
+
+	return out.String()
+}
+
+// TestGolden cleans each MySQL and PostgreSQL fixture with the default
+// rules and columns, compares the result with its .golden file, and checks
+// the output is still a valid dump. Run with -update to accept new output,
+// then review the diff.
+func TestGolden(t *testing.T) {
 	t.Parallel()
 
-	in := sqltest.Fixture(t, "mysql.sql")
-	got := cleanMySQL(t, newRedactor(t, newDetector(t)), goldenColumns(), in)
-	golden := filepath.Join("testdata", "mysql.sql.golden")
-
-	if *update {
-		if err := os.WriteFile(golden, []byte(got), 0o600); err != nil {
-			t.Fatal(err)
+	det := newDetector(t)
+	for _, name := range sqltest.Fixtures() {
+		d, _ := sqltest.DialectOf(name)
+		if cleaners[d] == nil {
+			continue
 		}
-	}
-	want, err := os.ReadFile(golden)
-	if err != nil {
-		t.Fatalf("%v (run go test ./internal/sqlscan -run TestMySQLGolden -update)", err)
-	}
-	if got != string(want) {
-		t.Errorf("output differs from %s:\n%s", golden, got)
-	}
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 
-	if err := sqltest.Check(sqltest.MySQL, got); err != nil {
-		t.Errorf("cleaned dump is not valid MySQL: %v", err)
-	}
-	for _, s := range survivors() {
-		if strings.Contains(got, s) {
-			t.Errorf("%q survived cleaning", s)
-		}
+			got := cleanDump(t, d, newRedactor(t, det), goldenColumns(), sqltest.Fixture(t, name))
+			golden := filepath.Join("testdata", name+".golden")
+
+			if *update {
+				if err := os.WriteFile(golden, []byte(got), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			want, err := os.ReadFile(golden)
+			if err != nil {
+				t.Fatalf("%v (run go test ./internal/sqlscan -run TestGolden -update)", err)
+			}
+			if got != string(want) {
+				t.Errorf("output differs from %s:\n%s", golden, got)
+			}
+
+			if err := sqltest.Check(d, got); err != nil {
+				t.Errorf("cleaned dump is not valid %s: %v", d, err)
+			}
+			for _, s := range survivors() {
+				if strings.Contains(got, s) {
+					t.Errorf("%q survived cleaning", s)
+				}
+			}
+		})
 	}
 }
 
-func TestMySQLGeneratedDumpStaysValid(t *testing.T) {
+func TestGeneratedDumpsStayValid(t *testing.T) {
 	t.Parallel()
 
-	var dump strings.Builder
-	if err := sqltest.WriteDump(&dump, sqltest.MySQL, 300); err != nil {
-		t.Fatal(err)
-	}
-	got := cleanMySQL(t, newRedactor(t, newDetector(t)), sqlscan.NewColumns(nil, nil), dump.String())
+	det := newDetector(t)
+	for d := range cleaners {
+		t.Run(string(d), func(t *testing.T) {
+			t.Parallel()
 
-	if err := sqltest.Check(sqltest.MySQL, got); err != nil {
-		t.Errorf("cleaned dump is not valid MySQL: %v", err)
-	}
-	for _, s := range []string{"@shop.test", "203.0.113.", "YTo"} {
-		if strings.Contains(got, s) {
-			t.Errorf("%q survived cleaning", s)
-		}
+			var dump strings.Builder
+			if err := sqltest.WriteDump(&dump, d, 300); err != nil {
+				t.Fatal(err)
+			}
+			got := cleanDump(t, d, newRedactor(t, det), sqlscan.NewColumns(nil, nil), dump.String())
+
+			if err := sqltest.Check(d, got); err != nil {
+				t.Errorf("cleaned dump is not valid %s: %v", d, err)
+			}
+			for _, s := range []string{"@shop.test", "203.0.113.", "YTo"} {
+				if strings.Contains(got, s) {
+					t.Errorf("%q survived cleaning", s)
+				}
+			}
+		})
 	}
 }
 
-// FuzzCleanMySQL checks that cleaning never panics, gives the input back
-// byte for byte when nothing is redacted, and turns a valid dump into a
-// valid dump.
-func FuzzCleanMySQL(f *testing.F) {
-	f.Add(sqltest.Fixture(f, "mysql.sql"))
-	f.Add(usersTable + "INSERT INTO `users` VALUES (1,'Alice','alice@shop.test','x\\'y'),(2,NULL,-1,0x0A);")
-	f.Add("INSERT INTO t (phone) VALUES (_binary 'a'), (N\"b\"), (b'1');\n-- 203.0.113.9\n/* alice@shop.test */")
+// fuzzClean checks that cleaning never panics, gives the input back byte
+// for byte when nothing is redacted, and turns a valid dump into a valid
+// dump.
+func fuzzClean(f *testing.F, d sqltest.Dialect) {
 	det := newDetector(f)
 
 	f.Fuzz(func(t *testing.T, in string) {
 		cols := sqlscan.NewColumns(nil, nil)
-		if got := cleanMySQL(t, identity{}, cols, in); got != in {
+		if got := cleanDump(t, d, identity{}, cols, in); got != in {
 			t.Fatalf("identity clean changed the input:\n in %q\nout %q", in, got)
 		}
 
-		out := cleanMySQL(t, newRedactor(t, det), cols, in)
-		if sqltest.Check(sqltest.MySQL, in) != nil {
+		out := cleanDump(t, d, newRedactor(t, det), cols, in)
+		if sqltest.Check(d, in) != nil {
 			return
 		}
-		if err := sqltest.Check(sqltest.MySQL, out); err != nil {
+		if err := sqltest.Check(d, out); err != nil {
 			t.Fatalf("valid input became invalid: %v\n in %q\nout %q", err, in, out)
 		}
 	})
 }
 
-func BenchmarkCleanMySQL(b *testing.B) {
-	var dump strings.Builder
-	if err := sqltest.WriteDump(&dump, sqltest.MySQL, 5000); err != nil {
-		b.Fatal(err)
-	}
+func FuzzCleanMySQL(f *testing.F) {
+	f.Add(sqltest.Fixture(f, "mysql.sql"))
+	f.Add(usersTable + "INSERT INTO `users` VALUES (1,'Alice','alice@shop.test','x\\'y'),(2,NULL,-1,0x0A);")
+	f.Add("INSERT INTO t (phone) VALUES (_binary 'a'), (N\"b\"), (b'1');\n-- 203.0.113.9\n/* alice@shop.test */")
+	fuzzClean(f, sqltest.MySQL)
+}
+
+func FuzzCleanPostgres(f *testing.F) {
+	f.Add(sqltest.Fixture(f, "postgres.sql"))
+	f.Add(sqltest.Fixture(f, "postgres-inserts.sql"))
+	f.Add(pgUsers + "INSERT INTO public.users VALUES (1, E'O\\'Brien', $$alice@shop.test$$, 'x');\nCOPY public.users (email, notes) FROM stdin;\nalice@shop.test\t203.0.113.9\\t\\N\n\\.\n")
+	fuzzClean(f, sqltest.Postgres)
+}
+
+func BenchmarkClean(b *testing.B) {
 	det := newDetector(b)
 	cols := sqlscan.NewColumns(nil, nil)
+	for _, d := range []sqltest.Dialect{sqltest.MySQL, sqltest.Postgres} {
+		b.Run(string(d), func(b *testing.B) {
+			var dump strings.Builder
+			if err := sqltest.WriteDump(&dump, d, 5000); err != nil {
+				b.Fatal(err)
+			}
 
-	b.SetBytes(int64(dump.Len()))
-	b.ReportAllocs()
-	for b.Loop() {
-		if err := sqlscan.CleanMySQL(io.Discard, strings.NewReader(dump.String()), newRedactor(b, det), cols, sqlscan.Options{}); err != nil {
-			b.Fatal(err)
-		}
+			b.SetBytes(int64(dump.Len()))
+			b.ReportAllocs()
+			for b.Loop() {
+				if err := cleaners[d](io.Discard, strings.NewReader(dump.String()), newRedactor(b, det), cols, sqlscan.Options{}); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
 	}
 }
 
@@ -190,29 +239,32 @@ func (w *gcWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-// TestCleanMySQLMemoryIsBounded streams about 10 MiB of generated dump
-// through the cleaner and checks the live heap stays flat, as
-// TestMySQLMemoryIsBounded does for the tokenizer alone.
-func TestCleanMySQLMemoryIsBounded(t *testing.T) {
+// TestCleanMemoryIsBounded streams about 5 MiB of generated dump per
+// dialect through the cleaner and checks the live heap stays flat, as
+// TestMySQLMemoryIsBounded does for the tokenizer alone. Not parallel, so
+// other tests do not share the heap being measured.
+func TestCleanMemoryIsBounded(t *testing.T) {
 	const maxGrowth = 1 << 20
 
-	var stats runtime.MemStats
-	runtime.GC()
-	runtime.ReadMemStats(&stats)
-	baseline := stats.HeapAlloc
+	for _, d := range []sqltest.Dialect{sqltest.MySQL, sqltest.Postgres} {
+		var stats runtime.MemStats
+		runtime.GC()
+		runtime.ReadMemStats(&stats)
+		baseline := stats.HeapAlloc
 
-	w := &gcWriter{}
-	if err := sqlscan.CleanMySQL(w, dumpReader(16000), constant{}, sqlscan.NewColumns(nil, nil), sqlscan.Options{}); err != nil {
-		t.Fatal(err)
-	}
+		w := &gcWriter{}
+		if err := cleaners[d](w, dumpReader(d, 16000), constant{}, sqlscan.NewColumns(nil, nil), sqlscan.Options{}); err != nil {
+			t.Fatal(err)
+		}
 
-	if w.written < 4*maxGrowth {
-		t.Fatalf("wrote only %d KiB, too little to show a bound", w.written>>10)
-	}
-	growth := int64(w.peak) - int64(baseline)
-	t.Logf("live heap grew by %d KiB writing %d KiB", growth>>10, w.written>>10)
-	if growth > maxGrowth {
-		t.Errorf("live heap grew by %d KiB writing %d KiB, want at most %d KiB", growth>>10, w.written>>10, maxGrowth>>10)
+		if w.written < 4*maxGrowth {
+			t.Fatalf("%s: wrote only %d KiB, too little to show a bound", d, w.written>>10)
+		}
+		growth := int64(w.peak) - int64(baseline)
+		t.Logf("%s: live heap grew by %d KiB writing %d KiB", d, growth>>10, w.written>>10)
+		if growth > maxGrowth {
+			t.Errorf("%s: live heap grew by %d KiB writing %d KiB, want at most %d KiB", d, growth>>10, w.written>>10, maxGrowth>>10)
+		}
 	}
 }
 

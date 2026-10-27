@@ -9,14 +9,18 @@ import (
 	"github.com/phoenix1331/cuddio/internal/sqlscan"
 )
 
-// stubRedactor redacts "alice@shop.test" (and "LINE" as a token with a line
-// break, for the comment cases), and replaces whole values with <LABEL>.
+// stubRedactor redacts "alice@shop.test" (and "LINE", "OPEN" and "CLOSE"
+// as tokens holding a line break, "/*" or "*/", for the comment cases), and
+// replaces whole values with <LABEL>.
 // "keep" stands in for an allowlisted value.
 type stubRedactor struct{}
 
 func (stubRedactor) Redact(s string) string {
 	s = strings.ReplaceAll(s, "alice@shop.test", "<EMAIL_1>")
 	s = strings.ReplaceAll(s, "LINE", "<A\nB>")
+	s = strings.ReplaceAll(s, "OPEN", "</*>")
+	s = strings.ReplaceAll(s, "BANG", "!<B>")
+	s = strings.ReplaceAll(s, "--", "<DASHES>")
 	return strings.ReplaceAll(s, "CLOSE", "<*/>")
 }
 
@@ -149,8 +153,13 @@ func TestCleanMySQL(t *testing.T) {
 		},
 		{
 			name: "comments a placeholder would break",
-			in:   "-- LINE\n/* CLOSE */ /* CLOSE\n",
-			want: "/**/\n/**/ /**/",
+			in:   "/*BANG*/ -- LINE\n/* CLOSE */ /* CLOSE\n",
+			want: "/**/ /**/\n/**/ /**/",
+		},
+		{
+			name: "comment markers are never redacted",
+			in:   "-- --\n#--\n/*--*/ --",
+			want: "-- <DASHES>\n#<DASHES>\n/*<DASHES>*/ --",
 		},
 		{
 			name: "unterminated string",

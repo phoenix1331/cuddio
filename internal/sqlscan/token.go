@@ -24,9 +24,10 @@ const (
 	// DirectiveEnd is the "*/" closing an executable comment.
 	DirectiveEnd
 	// String is a quoted string literal, including its quotes and any
-	// N prefix: 'it''s', "a\"b", N'x'.
+	// N or E prefix: 'it''s', "a\"b" (MySQL), N'x', E'a\n' and $$x$$
+	// (PostgreSQL).
 	String
-	// Identifier is a backtick-quoted name: `users`.
+	// Identifier is a quoted name: `users` (MySQL), "users" (PostgreSQL).
 	Identifier
 	// Hex is a hexadecimal literal: 0x89AB or X'89AB'.
 	Hex
@@ -40,9 +41,25 @@ const (
 	Word
 	// Punct is one byte of anything else: ( ) , ; = and so on.
 	Punct
+	// Meta is a psql meta-command line such as "\connect shop", without
+	// its line break.
+	Meta
+	// CopyData is one line of a PostgreSQL COPY ... FROM stdin block,
+	// line break included.
+	CopyData
+	// CopyEnd is the "\." line that ends a COPY block, line break included.
+	CopyEnd
 )
 
-var kindNames = [...]string{"Whitespace", "Comment", "DirectiveStart", "DirectiveEnd", "String", "Identifier", "Hex", "Bit", "Null", "Number", "Word", "Punct"}
+var kindNames = [...]string{"Whitespace", "Comment", "DirectiveStart", "DirectiveEnd", "String", "Identifier", "Hex", "Bit", "Null", "Number", "Word", "Punct", "Meta", "CopyData", "CopyEnd"}
+
+// dialect is the SQL flavour a Tokenizer reads.
+type dialect int
+
+const (
+	mysql dialect = iota
+	postgres
+)
 
 func (k Kind) String() string {
 	if int(k) < len(kindNames) {
@@ -60,25 +77,35 @@ type Token struct {
 	// Line is the 1-based line the token starts on.
 	Line int
 	// Charset is the introducer before a String, Hex or Bit literal
-	// without its underscore ("binary" for _binary 'x'), or "N" for N'x'.
+	// without its underscore ("binary" for _binary 'x'), "N" for N'x', or
+	// "E" for a PostgreSQL E'x'.
 	Charset string
 	// Unterminated is set on a String, Identifier or Comment that the input
 	// ended inside.
 	Unterminated bool
+	dialect      dialect
 }
 
 // Value returns a String token's contents with quotes removed and escapes
-// decoded as MySQL reads them (backslash escapes and doubled quotes), or an
-// Identifier's name. Other tokens return Text.
+// decoded as its dialect reads them, or an Identifier's name. MySQL strings
+// take backslash escapes and doubled quotes; PostgreSQL strings take doubled
+// quotes only, E'...' strings backslash escapes as well, and dollar-quoted
+// strings nothing. Other tokens return Text.
 func (t Token) Value() string {
-	switch t.Kind {
-	case String:
-		return unquote(t.Text, t.Unterminated, true)
-	case Identifier:
+	switch {
+	case t.Kind == Identifier:
 		return unquote(t.Text, t.Unterminated, false)
+	case t.Kind != String:
+		return t.Text
+	case t.dialect == mysql:
+		return unquote(t.Text, t.Unterminated, true)
+	case t.Text[0] == '$':
+		return dollarBody(t.Text, t.Unterminated)
+	case t.Charset == "E":
+		return unquoteE(t.Text, t.Unterminated)
 	}
 
-	return t.Text
+	return unquote(t.Text, t.Unterminated, false)
 }
 
 // unquote strips the prefix, opening quote and closing quote from a quoted

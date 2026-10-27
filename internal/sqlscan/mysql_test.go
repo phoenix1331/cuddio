@@ -342,10 +342,10 @@ func FuzzMySQLTokens(f *testing.F) {
 
 // dumpReader streams a generated dump through a pipe, so the dump is never
 // held in memory.
-func dumpReader(users int) io.Reader {
+func dumpReader(d sqltest.Dialect, users int) io.Reader {
 	r, w := io.Pipe()
 	go func() {
-		w.CloseWithError(sqltest.WriteDump(w, sqltest.MySQL, users))
+		w.CloseWithError(sqltest.WriteDump(w, d, users))
 	}()
 
 	return r
@@ -396,7 +396,7 @@ func TestMySQLMemoryIsBounded(t *testing.T) {
 	runtime.ReadMemStats(&stats)
 	baseline := stats.HeapAlloc
 
-	tz := sqlscan.NewMySQL(dumpReader(16000), sqlscan.Options{})
+	tz := sqlscan.NewMySQL(dumpReader(sqltest.MySQL, 16000), sqlscan.Options{})
 	var read, next, peak uint64
 	for {
 		tok, err := tz.Next()

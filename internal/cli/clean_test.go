@@ -180,8 +180,8 @@ func TestCleanFormat(t *testing.T) {
 		wantStderr string
 	}{
 		{"text flag", []string{"--format", "text", dump}, exitOK, "<EMAIL_1>\n", ""},
-		{"sql flag", []string{"--format", "sql"}, exitError, "", "cuddio: sql format is not supported yet\n"},
-		{"sql by extension", []string{dump}, exitError, "", "cuddio: sql format is not supported yet\n"},
+		{"sql flag on empty input", []string{"--format", "sql"}, exitOK, "", ""},
+		{"sql by extension", []string{dump}, exitError, "", "cuddio: cannot tell the SQL dialect from the start of the input; use --dialect mysql, postgres or sqlite\n"},
 		{"invalid flag", []string{"--format", "csv"}, exitError, "", `cuddio: invalid --format "csv": want text or sql` + "\n"},
 	}
 

@@ -15,7 +15,7 @@ import (
 // as Meta, CopyData and CopyEnd tokens.
 func NewPostgres(r io.Reader, opts Options) *Tokenizer {
 	t := NewMySQL(r, opts)
-	t.dialect = postgres
+	t.dialect = Postgres
 
 	return t
 }

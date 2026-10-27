@@ -210,3 +210,81 @@ func TestCleanStreamErrorsNeverLeak(t *testing.T) {
 		})
 	}
 }
+
+// leakySQL holds leakyValues in string values, a sensitive column and a
+// comment, in a form every dialect reads.
+const leakySQL = "-- from bob@shop.test\nINSERT INTO users (email, notes) VALUES ('alice@shop.test', 'key tok_s3cr3t');\n"
+
+func TestCleanSQLNeverLeaksOrChangesInput(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		args     func(input, output string) []string
+		wantCode int
+	}{
+		{name: "detected file to stdout", args: func(in, _ string) []string { return []string{in} }},
+		{name: "file to output", args: func(in, out string) []string { return []string{in, "-o", out} }},
+		{name: "mysql", args: func(in, _ string) []string { return []string{in, "--dialect", "mysql"} }},
+		{name: "postgres", args: func(in, _ string) []string { return []string{in, "--dialect", "postgres"} }},
+		{name: "sqlite", args: func(in, _ string) []string { return []string{in, "--dialect", "sqlite"} }},
+		{name: "invalid dialect", args: func(in, _ string) []string { return []string{in, "--dialect", "alice@shop.test"} }, wantCode: exitError},
+		{name: "undetectable", args: func(in, _ string) []string { return []string{in, "--format", "sql"} }, wantCode: exitError},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			dir := t.TempDir()
+			input := filepath.Join(dir, "dump.sql")
+			output := filepath.Join(dir, "clean.sql")
+			content := "PRAGMA foreign_keys=OFF;\n" + leakySQL
+			if tt.name == "undetectable" {
+				content = leakySQL
+			}
+			writeFile(t, input, content)
+			before := stateOf(t, input)
+
+			got := execute(t, Env{Rules: testRules, Args: tt.args(input, output)})
+
+			if got.code != tt.wantCode {
+				t.Errorf("exit code = %d (stderr %q), want %d", got.code, got.stderr, tt.wantCode)
+			}
+			assertNoLeak(t, leakyValues, got.stdout, got.stderr)
+			if stateOf(t, input) != before {
+				t.Error("input file changed")
+			}
+			if out, err := os.ReadFile(output); err == nil {
+				assertNoLeak(t, leakyValues, string(out))
+			}
+		})
+	}
+}
+
+func TestCleanSQLStreamErrorsNeverLeak(t *testing.T) {
+	t.Parallel()
+
+	long := "-- MySQL dump\nSELECT 'tok_s3cr3t " + strings.Repeat("x", 17<<20) + "';\n"
+	tests := []struct {
+		name  string
+		stdin io.Reader
+		want  string
+	}{
+		{"read fails after a secret", &failingReader{data: "-- MySQL dump\n" + leakySQL + "SELECT 'tok_s3cr3t", err: errors.New("broken pipe")}, "cuddio: read: broken pipe\n"},
+		{"value too long", strings.NewReader(long), "cuddio: token at line 2 is longer than 16777216 bytes\n"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := execute(t, Env{Rules: testRules, Args: []string{"--format", "sql"}, Stdin: tt.stdin})
+
+			if got.code != exitError || got.stderr != tt.want {
+				t.Errorf("clean = %d %q, want %d %q", got.code, got.stderr, exitError, tt.want)
+			}
+			assertNoLeak(t, leakyValues, got.stdout, got.stderr)
+		})
+	}
+}

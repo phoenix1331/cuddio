@@ -27,7 +27,8 @@ const (
 	// N or E prefix: 'it''s', "a\"b" (MySQL), N'x', E'a\n' and $$x$$
 	// (PostgreSQL).
 	String
-	// Identifier is a quoted name: `users` (MySQL), "users" (PostgreSQL).
+	// Identifier is a quoted name: `users` (MySQL), "users" (PostgreSQL,
+	// SQLite), [users] (SQLite).
 	Identifier
 	// Hex is a hexadecimal literal: 0x89AB or X'89AB'.
 	Hex
@@ -53,12 +54,14 @@ const (
 
 var kindNames = [...]string{"Whitespace", "Comment", "DirectiveStart", "DirectiveEnd", "String", "Identifier", "Hex", "Bit", "Null", "Number", "Word", "Punct", "Meta", "CopyData", "CopyEnd"}
 
-// dialect is the SQL flavour a Tokenizer reads.
-type dialect int
+// Dialect is the SQL flavour of a dump.
+type Dialect string
 
+// Dialects cuddio reads.
 const (
-	mysql dialect = iota
-	postgres
+	MySQL    Dialect = "mysql"
+	Postgres Dialect = "postgres"
+	SQLite   Dialect = "sqlite"
 )
 
 func (k Kind) String() string {
@@ -83,21 +86,23 @@ type Token struct {
 	// Unterminated is set on a String, Identifier or Comment that the input
 	// ended inside.
 	Unterminated bool
-	dialect      dialect
+	dialect      Dialect
 }
 
 // Value returns a String token's contents with quotes removed and escapes
 // decoded as its dialect reads them, or an Identifier's name. MySQL strings
-// take backslash escapes and doubled quotes; PostgreSQL strings take doubled
-// quotes only, E'...' strings backslash escapes as well, and dollar-quoted
-// strings nothing. Other tokens return Text.
+// take backslash escapes and doubled quotes; PostgreSQL and SQLite strings
+// take doubled quotes only, E'...' strings backslash escapes as well, and
+// dollar-quoted strings nothing. Other tokens return Text.
 func (t Token) Value() string {
 	switch {
+	case t.Kind == Identifier && t.Text[0] == '[':
+		return bracketBody(t.Text, t.Unterminated)
 	case t.Kind == Identifier:
 		return unquote(t.Text, t.Unterminated, false)
 	case t.Kind != String:
 		return t.Text
-	case t.dialect == mysql:
+	case t.dialect == MySQL:
 		return unquote(t.Text, t.Unterminated, true)
 	case t.Text[0] == '$':
 		return dollarBody(t.Text, t.Unterminated)
@@ -106,6 +111,15 @@ func (t Token) Value() string {
 	}
 
 	return unquote(t.Text, t.Unterminated, false)
+}
+
+// bracketBody returns the name inside an SQLite [name].
+func bracketBody(text string, unterminated bool) string {
+	if unterminated {
+		return text[1:]
+	}
+
+	return text[1 : len(text)-1]
 }
 
 // unquote strips the prefix, opening quote and closing quote from a quoted

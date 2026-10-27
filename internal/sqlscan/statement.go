@@ -76,6 +76,11 @@ type statement struct {
 	labels []string
 	// index is the position of the current value in an INSERT row.
 	index int
+	// afterWrapper is set just after a replace or unistr call name in a
+	// row; wrapped is set inside that call's parentheses, and arg counts
+	// its arguments.
+	afterWrapper, wrapped bool
+	arg                   int
 }
 
 func newStatement(cols *Columns) *statement {
@@ -83,13 +88,18 @@ func newStatement(cols *Columns) *statement {
 }
 
 // label returns the label for a value at the current position, or "" if
-// the position is not a sensitive column of an INSERT row.
+// the position is not a sensitive column of an INSERT row. A value is a
+// literal in the row itself, or the first argument of replace() or
+// unistr(), which sqlite3 .dump wraps around strings holding line breaks.
 func (s *statement) label() string {
-	if s.kind != insert || s.phase != values || s.depth != 1 || s.index >= len(s.labels) {
+	if s.kind != insert || s.phase != values || s.index >= len(s.labels) {
 		return ""
 	}
+	if s.depth == 1 || (s.depth == 2 && s.wrapped && s.arg == 0) {
+		return s.labels[s.index]
+	}
 
-	return s.labels[s.index]
+	return ""
 }
 
 // columnLabels returns the label of each column the statement fills: its
@@ -260,16 +270,24 @@ func (s *statement) observeColumnList(tok Token) {
 
 // observeRow tracks depth and value position through VALUES rows.
 func (s *statement) observeRow(tok Token) {
+	afterWrapper := s.depth == 1 && isKeyword(tok, "REPLACE", "UNISTR")
+	defer func() { s.afterWrapper = afterWrapper }()
+
 	switch {
 	case isPunct(tok, "("):
 		s.depth++
 		if s.depth == 1 {
 			s.index = 0
 		}
+		if s.depth == 2 {
+			s.wrapped, s.arg = s.afterWrapper, 0
+		}
 	case isPunct(tok, ")"):
 		s.depth = max(s.depth-1, 0)
 	case s.depth == 1 && isPunct(tok, ","):
 		s.index++
+	case s.depth == 2 && isPunct(tok, ","):
+		s.arg++
 	case s.depth == 0 && tok.Kind == Word && !isKeyword(tok, "ROW"):
 		// ON DUPLICATE KEY UPDATE, ON CONFLICT, or an AS alias
 		s.phase = finished

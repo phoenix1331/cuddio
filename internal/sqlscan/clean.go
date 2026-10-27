@@ -44,6 +44,14 @@ func CleanPostgres(w io.Writer, r io.Reader, rd Redactor, cols *Columns, opts Op
 	return clean(w, NewPostgres(r, opts), rd, cols)
 }
 
+// CleanSQLite copies a sqlite3 .dump file from r to w, as CleanMySQL does
+// for MySQL. A value wrapped in replace() or unistr(), as .dump writes
+// strings holding line breaks, counts as its column's value. A changed
+// value is written as a string with quotes doubled.
+func CleanSQLite(w io.Writer, r io.Reader, rd Redactor, cols *Columns, opts Options) error {
+	return clean(w, NewSQLite(r, opts), rd, cols)
+}
+
 func clean(w io.Writer, tz *Tokenizer, rd Redactor, cols *Columns) error {
 	out := bufio.NewWriter(w)
 	st := newStatement(cols)
@@ -131,7 +139,7 @@ func quote(tok Token, s string) string {
 	}
 
 	switch {
-	case tok.dialect == mysql:
+	case tok.dialect == MySQL:
 		return prefix + q + mysqlEscaper.Replace(s) + q
 	case strings.EqualFold(prefix, "E"):
 		return prefix + q + escapeE.Replace(s) + q
@@ -184,7 +192,7 @@ func commentParts(tok Token) (open, body, end string) {
 	}
 
 	n := 2
-	if tok.dialect == mysql && len(text) > 2 {
+	if tok.dialect == MySQL && len(text) > 2 {
 		n = 3
 	}
 

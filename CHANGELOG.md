@@ -23,5 +23,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Config errors never repeat a value from the file: unknown settings and rule names are named only as a near miss of a real one ("did you mean disable?"), and invalid custom rule IDs and categories are reported by position
 - Passwords in PDO DSNs (`pgsql:host=db;password=...`) and URL-encoded email addresses (`?email=alice%40example.com`) are now hidden
 - Only the secret part of a match is replaced (`DB_PASSWORD=<SECRET_1>`, `mysql://app:<PASSWORD_1>@db`), and empty values, `null`, references such as `${DB_PASSWORD}` and existing placeholders are left alone, so cleaning output twice changes nothing
+- SQL dumps are cleaned as SQL: `.sql` files, `--format sql` or `--dialect`. MySQL and MariaDB (`mysqldump`), PostgreSQL (`pg_dump`, including `COPY ... FROM stdin` blocks) and SQLite (`sqlite3 .dump`) are supported, and the output stays valid SQL. Every string value and comment goes through the rules, and whole values are hidden in sensitive columns (`email`, `password`, `phone`, `name`, `address`, `postcode`, `remember_token` and more, `billing_email`-style names too, plus Laravel's `sessions.id` and `payload`) even when no pattern matches them
+- The dialect is detected from the start of the dump; `--dialect mysql|postgres|sqlite` sets it when cuddio cannot tell
+- `sql.columns` and `sql.tables` in config add sensitive columns for every table or for one table
 
 [Unreleased]: https://github.com/phoenix1331/cuddio/commits/main

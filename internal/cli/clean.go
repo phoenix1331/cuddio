@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"bufio"
+	"cmp"
 	"errors"
 	"fmt"
 	"io"
@@ -12,6 +14,7 @@ import (
 	"github.com/phoenix1331/cuddio/internal/config"
 	"github.com/phoenix1331/cuddio/internal/detect"
 	"github.com/phoenix1331/cuddio/internal/replace"
+	"github.com/phoenix1331/cuddio/internal/sqlscan"
 	"github.com/phoenix1331/cuddio/internal/textscan"
 )
 
@@ -22,9 +25,10 @@ const (
 
 // cleanFlags are the root command's flags for cleaning input.
 type cleanFlags struct {
-	output string
-	force  bool
-	format string
+	output  string
+	force   bool
+	format  string
+	dialect string
 }
 
 // clean reads the file in args, or stdin, and writes the redacted text to
@@ -34,12 +38,17 @@ func (a *app) clean(args []string, flags cleanFlags) error {
 	if len(args) > 0 {
 		path = args[0]
 	}
-	format, err := resolveFormat(flags.format, path)
+	format, err := resolveFormat(flags.format, flags.dialect, path)
 	if err != nil {
 		return err
 	}
-	if format == formatSQL {
-		return errors.New("sql format is not supported yet")
+	var dialect sqlscan.Dialect
+	if flags.dialect != "" {
+		d, ok := sqlscan.ParseDialect(flags.dialect)
+		if !ok {
+			return errors.New("invalid --dialect: want mysql, postgres or sqlite")
+		}
+		dialect = d
 	}
 	if a.config.Mode == config.ModeFake {
 		return errors.New("fake mode is not supported yet")
@@ -49,7 +58,6 @@ func (a *app) clean(args []string, flags cleanFlags) error {
 	if err != nil {
 		return err
 	}
-	redact := redactor.Redact
 
 	in, inInfo, err := a.openInput(path)
 	if err != nil {
@@ -57,13 +65,43 @@ func (a *app) clean(args []string, flags cleanFlags) error {
 	}
 	defer in.Close()
 
+	run, err := a.cleaner(format, dialect, in, redactor)
+	if err != nil {
+		return err
+	}
 	if flags.output == "" {
-		return textscan.Clean(a.env.Stdout, in, redact, textscan.Options{})
+		return run(a.env.Stdout)
 	}
 
-	return writeOutput(flags.output, flags.force, inInfo, func(w io.Writer) error {
-		return textscan.Clean(w, in, redact, textscan.Options{})
-	})
+	return writeOutput(flags.output, flags.force, inInfo, run)
+}
+
+// cleaner returns the function that cleans in for format. For SQL without
+// a dialect, the dialect is detected from the start of the input, which is
+// buffered rather than consumed.
+func (a *app) cleaner(format string, dialect sqlscan.Dialect, in io.Reader, rd *detect.Redactor) (func(io.Writer) error, error) {
+	if format == formatText {
+		return func(w io.Writer) error {
+			return textscan.Clean(w, in, rd.Redact, textscan.Options{})
+		}, nil
+	}
+
+	buffered := bufio.NewReaderSize(in, sqlscan.DetectSize)
+	if dialect == "" {
+		// A read error here comes back again when cleaning reads on
+		header, _ := buffered.Peek(sqlscan.DetectSize)
+		detected, ok := sqlscan.Detect(header)
+		if !ok && len(header) > 0 {
+			return nil, errors.New("cannot tell the SQL dialect from the start of the input; use --dialect mysql, postgres or sqlite")
+		}
+		// Empty input has nothing to clean in any dialect
+		dialect = cmp.Or(detected, sqlscan.MySQL)
+	}
+	cols := sqlscan.NewColumns(a.config.SQL.Columns, a.config.SQL.Tables)
+
+	return func(w io.Writer) error {
+		return sqlscan.Clean(w, buffered, dialect, rd, cols, sqlscan.Options{})
+	}, nil
 }
 
 // redactor builds the run's redactor from the rules and config.
@@ -156,14 +194,19 @@ func writeOutput(path string, force bool, input fs.FileInfo, write func(io.Write
 	return nil
 }
 
-// resolveFormat returns the --format value, or the format implied by the
-// file extension (.sql is SQL, anything else text).
-func resolveFormat(flag, path string) (string, error) {
+// resolveFormat returns the --format value, or the format implied by
+// --dialect or the file extension (.sql is SQL, anything else text).
+func resolveFormat(flag, dialect, path string) (string, error) {
 	switch flag {
-	case formatText, formatSQL:
+	case formatText:
+		if dialect != "" {
+			return "", errors.New("--dialect only applies to --format sql")
+		}
+		return flag, nil
+	case formatSQL:
 		return flag, nil
 	case "":
-		if strings.EqualFold(filepath.Ext(path), ".sql") {
+		if dialect != "" || strings.EqualFold(filepath.Ext(path), ".sql") {
 			return formatSQL, nil
 		}
 		return formatText, nil

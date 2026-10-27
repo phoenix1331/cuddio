@@ -72,6 +72,7 @@ func survivors() []string {
 var cleaners = map[sqltest.Dialect]func(io.Writer, io.Reader, sqlscan.Redactor, *sqlscan.Columns, sqlscan.Options) error{
 	sqltest.MySQL:    sqlscan.CleanMySQL,
 	sqltest.Postgres: sqlscan.CleanPostgres,
+	sqltest.SQLite:   sqlscan.CleanSQLite,
 }
 
 func cleanDump(tb testing.TB, d sqltest.Dialect, rd sqlscan.Redactor, cols *sqlscan.Columns, in string) string {
@@ -85,9 +86,9 @@ func cleanDump(tb testing.TB, d sqltest.Dialect, rd sqlscan.Redactor, cols *sqls
 	return out.String()
 }
 
-// TestGolden cleans each MySQL and PostgreSQL fixture with the default
-// rules and columns, compares the result with its .golden file, and checks
-// the output is still a valid dump. Run with -update to accept new output,
+// TestGolden cleans each fixture with the default rules and columns,
+// compares the result with its .golden file, and checks the output is still
+// a valid dump (for SQLite, that it imports). Run with -update to accept new output,
 // then review the diff.
 func TestGolden(t *testing.T) {
 	t.Parallel()
@@ -95,9 +96,6 @@ func TestGolden(t *testing.T) {
 	det := newDetector(t)
 	for _, name := range sqltest.Fixtures() {
 		d, _ := sqltest.DialectOf(name)
-		if cleaners[d] == nil {
-			continue
-		}
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
@@ -191,10 +189,16 @@ func FuzzCleanPostgres(f *testing.F) {
 	fuzzClean(f, sqltest.Postgres)
 }
 
+func FuzzCleanSQLite(f *testing.F) {
+	f.Add(sqltest.Fixture(f, "sqlite.sql"))
+	f.Add("CREATE TABLE \"t\" (\"address\" text, [notes] text);\nINSERT INTO t VALUES(replace('1 High St\\nalice@shop.test','\\n',char(10)),'203.0.113.9');\n-- alice@shop.test")
+	fuzzClean(f, sqltest.SQLite)
+}
+
 func BenchmarkClean(b *testing.B) {
 	det := newDetector(b)
 	cols := sqlscan.NewColumns(nil, nil)
-	for _, d := range []sqltest.Dialect{sqltest.MySQL, sqltest.Postgres} {
+	for _, d := range []sqltest.Dialect{sqltest.MySQL, sqltest.Postgres, sqltest.SQLite} {
 		b.Run(string(d), func(b *testing.B) {
 			var dump strings.Builder
 			if err := sqltest.WriteDump(&dump, d, 5000); err != nil {
@@ -246,7 +250,7 @@ func (w *gcWriter) Write(p []byte) (int, error) {
 func TestCleanMemoryIsBounded(t *testing.T) {
 	const maxGrowth = 1 << 20
 
-	for _, d := range []sqltest.Dialect{sqltest.MySQL, sqltest.Postgres} {
+	for _, d := range []sqltest.Dialect{sqltest.MySQL, sqltest.Postgres, sqltest.SQLite} {
 		var stats runtime.MemStats
 		runtime.GC()
 		runtime.ReadMemStats(&stats)

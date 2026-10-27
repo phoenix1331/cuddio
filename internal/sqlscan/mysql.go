@@ -24,7 +24,7 @@ type Options struct {
 // is held in memory.
 type Tokenizer struct {
 	r        *bufio.Reader
-	dialect  dialect
+	dialect  Dialect
 	maxToken int
 	line     int
 	text     strings.Builder
@@ -52,20 +52,24 @@ func NewMySQL(r io.Reader, opts Options) *Tokenizer {
 		maxToken = DefaultMaxToken
 	}
 
-	return &Tokenizer{r: bufio.NewReaderSize(r, 64<<10), maxToken: maxToken, line: 1, atLineStart: true}
+	return &Tokenizer{r: bufio.NewReaderSize(r, 64<<10), dialect: MySQL, maxToken: maxToken, line: 1, atLineStart: true}
 }
 
 // errTooLong is what read returns past MaxToken; Next adds the line.
 var errTooLong = errors.New("token too long")
 
-// Next returns the next token, or io.EOF after the last one.
+// Next returns the next token, or io.EOF after the last one. Read errors
+// are wrapped with a "read:" prefix.
 func (t *Tokenizer) Next() (Token, error) {
 	t.text.Reset()
 	line := t.line
 
 	c, err := t.r.ReadByte()
-	if err != nil {
+	if errors.Is(err, io.EOF) {
 		return Token{}, err
+	}
+	if err != nil {
+		return Token{}, fmt.Errorf("read: %w", err)
 	}
 	t.text.WriteByte(c)
 
@@ -74,7 +78,7 @@ func (t *Tokenizer) Next() (Token, error) {
 		return Token{}, fmt.Errorf("token at line %d is longer than %d bytes", line, t.maxToken)
 	}
 	if err != nil {
-		return Token{}, err
+		return Token{}, fmt.Errorf("read: %w", err)
 	}
 
 	tok.Text = t.text.String()
@@ -82,7 +86,7 @@ func (t *Tokenizer) Next() (Token, error) {
 	tok.dialect = t.dialect
 	t.line += strings.Count(tok.Text, "\n")
 	t.trackIntroducer(&tok)
-	if t.dialect == postgres {
+	if t.dialect == Postgres {
 		t.trackPostgres(tok)
 	}
 
@@ -121,13 +125,18 @@ func (t *Tokenizer) trackIntroducer(tok *Token) {
 }
 
 func (t *Tokenizer) scan(c byte) (Token, error) {
-	if t.dialect == postgres {
+	if t.dialect == Postgres {
 		if tok, ok, err := t.scanPostgres(c); ok {
 			return tok, err
 		}
 	}
+	if t.dialect == SQLite {
+		if tok, ok, err := t.scanSQLite(c); ok {
+			return tok, err
+		}
+	}
 
-	backslashes := t.dialect == mysql
+	backslashes := t.dialect == MySQL
 	switch {
 	case isSpace(c) && t.copyPending:
 		return Token{Kind: Whitespace}, t.spaceToLineEnd(c)
@@ -167,7 +176,7 @@ func (t *Tokenizer) blockComment() (Token, error) {
 	if err := t.take(1); err != nil {
 		return Token{}, err
 	}
-	if t.peekIs(0, '!') && !t.inDirective {
+	if t.peekIs(0, '!') && !t.inDirective && t.dialect == MySQL {
 		t.inDirective = true
 		if err := t.take(1); err != nil {
 			return Token{}, err
@@ -280,7 +289,7 @@ func (t *Tokenizer) word(first byte) (Token, error) {
 			if err := t.take(1); err != nil {
 				return Token{}, err
 			}
-			unterminated, err := t.quoted('\'', t.dialect == mysql)
+			unterminated, err := t.quoted('\'', t.dialect == MySQL)
 			return Token{Kind: String, Charset: "N", Unterminated: unterminated}, err
 		}
 	}

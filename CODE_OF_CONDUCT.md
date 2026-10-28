@@ -36,7 +36,7 @@ This Code of Conduct applies within all community spaces, and also applies when 
 
 ## Enforcement
 
-Instances of abusive, harassing, or otherwise unacceptable behaviour may be reported to the community leaders responsible for enforcement at a private message to the maintainer, [@phoenix1331](https://github.com/phoenix1331), on GitHub. All complaints will be reviewed and investigated promptly and fairly.
+Instances of abusive, harassing, or otherwise unacceptable behaviour may be reported to the community leaders responsible for enforcement using GitHub's [Report content](https://docs.github.com/en/communities/maintaining-your-safety-on-github/reporting-abuse-or-spam) option, found in the "..." menu on any issue, pull request, comment or discussion. Reports reach the maintainer, [@phoenix1331](https://github.com/phoenix1331), privately. All complaints will be reviewed and investigated promptly and fairly.
 
 All community leaders are obligated to respect the privacy and security of the reporter of any incident.
 

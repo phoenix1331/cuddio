@@ -278,7 +278,7 @@ The suite includes golden files for logs and every SQL dialect, SQL output check
 
 ## Acknowledgements
 
-Secret detection includes rules derived from [gitleaks](https://github.com/gitleaks/gitleaks) by Zachary Rice and contributors, MIT licensed, from release v8.30.1. The notice is in [`LICENSE`](LICENSE).
+Secret detection includes rules derived from [gitleaks](https://github.com/gitleaks/gitleaks) by Zachary Rice and contributors, MIT licensed, from release v8.30.1. The notice is in [`internal/rules/LICENSE-gitleaks`](internal/rules/LICENSE-gitleaks), and `cuddio licences` prints it.
 
 `cuddio licences` prints the licences of Cuddio and of everything built into the binary (Go, cobra, pflag, yaml), so release downloads need nothing beyond the binary, `LICENSE` and `README.md`.
 

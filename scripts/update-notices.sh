@@ -1,6 +1,6 @@
 #!/bin/sh
 # Regenerates internal/notices/notices.txt, the licence notices that
-# cuddio licences prints: cuddio's own LICENSE (with the gitleaks notice),
+# cuddio licences prints: cuddio's own LICENSE, the gitleaks notice,
 # Go's, and every module linked into a Linux, macOS or Windows build.
 # Run it after adding or updating a dependency; TestNoticesCoverEveryModule
 # fails until it has been run.
@@ -18,6 +18,10 @@ done | grep -v '^github.com/phoenix1331/cuddio$' | sort -u)
   echo "cuddio"
   echo
   cat LICENSE
+  echo
+  echo "---"
+  echo
+  cat internal/rules/LICENSE-gitleaks
   echo
   echo "== Go (standard library and runtime) =="
   echo

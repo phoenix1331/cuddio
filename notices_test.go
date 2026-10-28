@@ -38,14 +38,16 @@ func TestNoticesCoverEveryModule(t *testing.T) {
 	}
 }
 
-func TestNoticesIncludeLicense(t *testing.T) {
+func TestNoticesIncludeLicenses(t *testing.T) {
 	t.Parallel()
 
-	license, err := os.ReadFile("LICENSE")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(notices.Text(), string(license)) {
-		t.Error("notices do not include the current LICENSE; run scripts/update-notices.sh")
+	for _, path := range []string{"LICENSE", "internal/rules/LICENSE-gitleaks"} {
+		license, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(notices.Text(), string(license)) {
+			t.Errorf("notices do not include the current %s; run scripts/update-notices.sh", path)
+		}
 	}
 }

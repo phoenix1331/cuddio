@@ -31,7 +31,7 @@ First of a planned set of Welsh-named Go tools sharing one visual style for READ
 | `scripts/test-windows.sh` | In WSL: every package's tests cross-compiled for Windows and run natively through interop |
 | `examples/` | Fake files for users to try, one command each in `examples/README.md`; `examples_test.go` at the root cleans every one with the real rules |
 | `tapes/` | VHS tapes: `settings.tape` (shared look, `Set` only), `setup.tape` (hidden `cd` and prompt), and `hero`, `sql`, `restore`, `clipboard`, `check`, `config` |
-| `docs/` | GitHub Pages site and `docs/gifs/`; a separate module (`docs/go.mod`) so it stays out of cuddio's module zip |
+| `docs/` | GitHub Pages site (`index.html`, one self-contained page) and `docs/gifs/`; a separate module (`docs/go.mod`) so it stays out of cuddio's module zip |
 | `scripts/render-gifs.sh` | Builds cuddio, records each tape in a fresh copy of `examples/` with temp config and cache, into `docs/gifs/` |
 | `.github/scripts/` | `check-archives.sh` (release archive allow list), `check-module-size.sh` (module zip budget), `e2e.ps1` (Windows PowerShell 5.1 checks) |
 | `.githooks/` | `commit-msg` and `pre-commit`, enabled with `git config core.hooksPath .githooks` |
@@ -99,6 +99,9 @@ First of a planned set of Welsh-named Go tools sharing one visual style for READ
 | The postcode field was taken out of `examples/laravel.log` | `uk-postcode` is off by default, so a visible postcode in the hero GIF read as a leak |
 | Issue forms: bug, false positive, false negative, new rule; blank issues off; security reports linked to private advisories | Every form warns against real values; the false-negative form asks for a made-up value in the same shape and a confirmation checkbox, since a real key in a public issue is a leak |
 | `SECURITY.md` lists what cuddio touches, detects and does not detect, and what counts as a vulnerability (a value printed, stored or sent) versus a false negative (public issue, fake data) | One place answers "is this safe to run" and "where do I report this" |
+| Site: one `docs/index.html`, inline CSS and JS, Google Fonts (Inter, JetBrains Mono) only; colours as CSS custom properties with a `prefers-color-scheme` dark theme; slate, Welsh green and dragon red | The family style for future Welsh-named tools: change the tokens, keep the components |
+| The site's rule tables are generated from `cuddio rules` output when the page is built, and its config example was loaded by cuddio to check it | The page cannot list a rule the binary lacks or show config that does not load; regenerate after rule changes |
+| Logo: `docs/cuddio-logo-dark.png` and `-white.png` are the originals; the site header uses `-header.png` copies (108 px tall, 25 to 40 KB) through `<picture>`, white for `prefers-color-scheme: dark`; regenerate them when the originals change | The originals are large (1510x440, up to 283 KB), with faint background specks (alpha under 32) that showed on dark backgrounds; the header copies drop those and are sized for 36 px at 3x |
 | The clipboard helper process runs `os.Executable()`, not `os.Args[0]` | `os.Args[0]` can be a bare name, which Windows `exec` will not look up in the current directory |
 | Dependabot ignores `github.com/pingcap/tidb/pkg/parser`; bump its pseudo-version by hand (`/1331-compat`) | It has no semver tags, so Dependabot picks the parent repo's `v2.1.0-rc.5+incompatible`, which lacks the package, and the grouped Go update failed every week |
 | Mapping store: a file where its folder should be is an error ("the cache path is a file, not a folder") on every platform | Found by Windows CI: listing a file there reports "not found", so the store read as empty and `--map` wrote output before failing to save |

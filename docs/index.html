@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>cuddio: hide what matters before you paste</title>
+<meta name="description" content="A local-only Go CLI that hides secrets and PII in logs, .env files and MySQL, PostgreSQL and SQLite dumps before you share them with AI tools. Reversible placeholders, column-aware SQL redaction, clipboard support and CI checks.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="cuddio: hide what matters before you paste">
+<meta property="og:description" content="Hide secrets and PII in logs, SQL dumps and text before you paste them into AI tools. Local only, single binary, reversible placeholders.">
+<meta property="og:url" content="https://phoenix1331.github.io/cuddio/">
+<meta property="og:image" content="https://phoenix1331.github.io/cuddio/gifs/hero.gif">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2300843d'/%3E%3Crect x='14' y='26' width='36' height='12' rx='3' fill='%23ffffff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* Shared look for the family of Welsh-named Go tools: slate neutrals, a
+   Welsh green accent and a little dragon red. Change the brand in the
+   tokens below; the components use tokens only. */
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-2: #eef1f4;
+  --text: #17202a;
+  --muted: #55606c;
+  --border: #d9dee4;
+  --accent: #00843d;
+  --accent-text: #006b31;
+  --accent-soft: #e2f3e9;
+  --dragon: #c8102e;
+  --code-bg: #1e1e2e;
+  --code-text: #cdd6f4;
+  --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 8px 24px rgba(16, 24, 40, .06);
+  --radius: 14px;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1419;
+    --surface: #161c23;
+    --surface-2: #1d252e;
+    --text: #e6eaef;
+    --muted: #9aa5b1;
+    --border: #2a333d;
+    --accent: #2fbf71;
+    --accent-text: #4fd68a;
+    --accent-soft: #12301f;
+    --dragon: #ff5a6e;
+    --code-bg: #11111b;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .3);
+  }
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.65 var(--sans); -webkit-font-smoothing: antialiased; }
+a { color: var(--accent-text); text-underline-offset: 3px; }
+a:hover { color: var(--accent); }
+code { font-family: var(--mono); font-size: .88em; background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: .08em .35em; }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+
+/* Header */
+header.top { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); }
+header.top .wrap { display: flex; align-items: center; gap: 24px; height: 60px; }
+.brand { display: flex; align-items: center; text-decoration: none; }
+.brand img { display: block; height: 36px; width: auto; }
+nav.links { display: flex; gap: 18px; margin-left: auto; font-size: .93rem; }
+nav.links a { color: var(--muted); text-decoration: none; }
+nav.links a:hover { color: var(--text); }
+@media (max-width: 760px) { nav.links .opt { display: none; } }
+
+/* Hero */
+.hero { padding-top: 64px; padding-bottom: 40px; }
+.eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: .85rem; font-weight: 600; color: var(--accent-text); background: var(--accent-soft); border-radius: 999px; padding: 4px 12px; }
+.hero h1 { font-size: clamp(2.2rem, 5.5vw, 3.6rem); line-height: 1.08; letter-spacing: -.03em; margin: 18px 0 16px; font-weight: 800; }
+.hero h1 em { font-style: normal; color: var(--accent); }
+.lede { font-size: 1.15rem; color: var(--muted); max-width: 720px; margin: 0 0 28px; }
+.lede strong { color: var(--text); }
+.shot { margin: 32px 0 0; }
+.shot img { display: block; width: 100%; height: auto; border-radius: 12px; box-shadow: var(--shadow); background: #1e1e2e; }
+.shot figcaption { font-size: .88rem; color: var(--muted); margin-top: 10px; }
+
+/* Install */
+.install { display: grid; gap: 12px; margin-top: 28px; }
+.cmd { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow); min-width: 0; }
+.cmd .label { font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 8px; }
+.cmd .line { display: flex; align-items: flex-start; gap: 8px; }
+.cmd pre { margin: 0; flex: 1; min-width: 0; font: .9rem/1.55 var(--mono); white-space: pre; overflow-x: auto; color: var(--text); }
+.copy { flex: none; font: 600 .75rem var(--sans); color: var(--muted); background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 4px 8px; cursor: pointer; }
+.copy:hover { color: var(--text); }
+.copy.done { color: var(--accent-text); border-color: var(--accent); }
+
+/* Name */
+.name { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; margin-top: 36px; padding: 16px 20px; border-left: 4px solid var(--dragon); background: var(--surface); border-radius: 0 var(--radius) var(--radius) 0; }
+.name .word { font-weight: 800; font-size: 1.3rem; }
+.name .say { font-family: var(--mono); color: var(--muted); }
+
+/* Sections */
+section { padding: 56px 0; border-top: 1px solid var(--border); }
+section h2 { font-size: clamp(1.6rem, 3.4vw, 2.2rem); letter-spacing: -.02em; line-height: 1.15; margin: 0 0 12px; }
+section h3 { font-size: 1.15rem; margin: 28px 0 8px; }
+.sub { color: var(--muted); max-width: 760px; margin: 0 0 24px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); }
+.card h3 { margin-top: 0; font-size: 1.05rem; }
+.card p { margin: 0; color: var(--muted); font-size: .95rem; }
+.feature { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 32px; align-items: start; margin-top: 40px; }
+.feature:first-of-type { margin-top: 8px; }
+@media (max-width: 860px) { .feature { grid-template-columns: minmax(0, 1fr); gap: 16px; } }
+.feature h3 { margin-top: 0; font-size: 1.3rem; }
+.feature img { display: block; width: 100%; height: auto; border-radius: 12px; box-shadow: var(--shadow); background: #1e1e2e; }
+.feature p { color: var(--muted); }
+
+/* Code */
+pre.code { background: var(--code-bg); color: var(--code-text); font: .86rem/1.6 var(--mono); padding: 16px 18px; border-radius: 12px; overflow-x: auto; margin: 12px 0; }
+pre.code .c { color: #7f849c; }
+pre.code .p { color: #a6e3a1; user-select: none; }
+
+/* Tables */
+.table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+table { border-collapse: collapse; width: 100%; min-width: 620px; font-size: .93rem; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); background: var(--surface-2); }
+tr:last-child td { border-bottom: 0; }
+td code { white-space: nowrap; }
+.on, .off { font: 600 .75rem var(--sans); border-radius: 999px; padding: 2px 9px; }
+.on { background: var(--accent-soft); color: var(--accent-text); }
+.off { background: var(--surface-2); color: var(--muted); border: 1px solid var(--border); }
+details { margin-top: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; }
+details summary { cursor: pointer; font-weight: 600; }
+.ids { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+.ids code { font-size: .78rem; }
+.columns { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* Notices */
+.notice { border: 1px solid var(--border); border-left: 4px solid var(--dragon); background: var(--surface); border-radius: 0 var(--radius) var(--radius) 0; padding: 16px 20px; margin-top: 20px; }
+.notice strong { color: var(--text); }
+
+footer { border-top: 1px solid var(--border); padding: 36px 0 56px; color: var(--muted); font-size: .92rem; }
+footer .wrap { display: grid; gap: 14px; }
+footer .links { display: flex; flex-wrap: wrap; gap: 8px 20px; }
+@media (max-width: 520px) { body { font-size: 15.5px; } .hero { padding-top: 40px; } section { padding: 44px 0; } .copy { padding: 4px 6px; } }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#" aria-label="cuddio, back to top">
+      <picture>
+        <source srcset="cuddio-logo-white-header.png" media="(prefers-color-scheme: dark)">
+        <img src="cuddio-logo-dark-header.png" width="124" height="36" alt="cuddio">
+      </picture>
+    </a>
+    <nav class="links" aria-label="Sections">
+      <a href="#install">Install</a>
+      <a class="opt" href="#features">Features</a>
+      <a class="opt" href="#config">Config</a>
+      <a href="#rules">Rules</a>
+      <a class="opt" href="#security">Security</a>
+      <a href="https://github.com/phoenix1331/cuddio">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<div class="wrap hero">
+  <span class="eyebrow">Local only &middot; single binary &middot; no network</span>
+  <h1>Hide what matters <em>before you paste.</em></h1>
+  <p class="lede">cuddio hides <strong>secrets</strong> and <strong>PII</strong> (personally identifiable information) in logs, <code>.env</code> files and MySQL, PostgreSQL and SQLite dumps before you share them with AI tools. Values become placeholders like <code>&lt;EMAIL_1&gt;</code>, so the AI can still tell them apart, and <code>cuddio restore</code> puts the real values back into its answer.</p>
+
+  <figure class="shot">
+    <img src="gifs/hero.gif" width="1280" height="380" alt="A terminal showing two Laravel log lines with an email, phone number, card number, IP address and tokens, then the same lines through cuddio with each value replaced by a placeholder such as EMAIL_1 and CARD_1.">
+    <figcaption>Two lines of a Laravel log, before and after.</figcaption>
+  </figure>
+
+  <div class="name" aria-label="About the name">
+    <span class="word">cuddio</span>
+    <span class="say">/KITH-yo/</span>
+    <span>Welsh for <em>to hide</em>. The <em>dd</em> is the <em>th</em> in <em>this</em>.</span>
+  </div>
+</div>
+
+<section id="install">
+  <div class="wrap">
+    <h2>Install</h2>
+    <p class="sub">One binary for Linux, macOS and Windows (amd64 and arm64), with no runtime to install. Or download it from <a href="https://github.com/phoenix1331/cuddio/releases">GitHub Releases</a>.</p>
+    <div class="install">
+      <div class="cmd"><div class="label">Homebrew</div><div class="line"><pre>brew install phoenix1331/tap/cuddio</pre><button class="copy" type="button">Copy</button></div></div>
+      <div class="cmd"><div class="label">Scoop (Windows)</div><div class="line"><pre>scoop bucket add phoenix1331 https://github.com/phoenix1331/scoop-bucket
+scoop install cuddio</pre><button class="copy" type="button">Copy</button></div></div>
+      <div class="cmd"><div class="label">Go 1.26 or later</div><div class="line"><pre>go install github.com/phoenix1331/cuddio@latest</pre><button class="copy" type="button">Copy</button></div></div>
+    </div>
+
+    <h3>Quick start</h3>
+<pre class="code"><span class="p">$ </span>cat storage/logs/laravel.log | cuddio      <span class="c"># clean stdin to stdout</span>
+<span class="p">$ </span>cuddio app.log -o app.clean.log           <span class="c"># write to a new file, never the input</span>
+<span class="p">$ </span>cuddio --clip                             <span class="c"># clean the clipboard in place</span></pre>
+    <p class="sub">Try it on the fake files in <a href="https://github.com/phoenix1331/cuddio/tree/main/examples"><code>examples/</code></a>, which have a command for each.</p>
+  </div>
+</section>
+
+<section id="why">
+  <div class="wrap">
+    <h2>Why cuddio</h2>
+    <p class="sub">Developers paste logs, stack traces, config and database dumps into AI chats every day, and those often hold API keys and passwords as well as customers' emails, phone numbers and names. Sending personal data to a third-party AI service can breach UK GDPR and company policy, even when nobody meant any harm. cuddio cleans the text first, on your machine.</p>
+    <div class="grid">
+      <div class="card"><h3>Reversible placeholders</h3><p>The same value always gets the same token, so the AI can reason about which customer is which. <code>cuddio restore</code> swaps the real values back into its answer.</p></div>
+      <div class="card"><h3>SQL-aware</h3><p>Reads <code>CREATE TABLE</code> and <code>INSERT</code> columns, hides every value in sensitive columns, and keeps the dump valid SQL. Fake mode writes realistic values so it still imports.</p></div>
+      <div class="card"><h3>Clipboard, including WSL</h3><p><code>cuddio --clip</code> cleans whatever you just copied, with UTF-8 kept intact on Windows, WSL, macOS and Linux.</p></div>
+      <div class="card"><h3>Laravel and PHP aware</h3><p><code>APP_KEY</code>, <code>.env</code> files, PDO DSN passwords, log context payloads and session tables, without being PHP-only.</p></div>
+      <div class="card"><h3>Built for CI</h3><p><code>--check</code> exits 1 when anything would be hidden and prints counts only. Values are never printed in errors or reports.</p></div>
+      <div class="card"><h3>Single binary, no network</h3><p>No Python or Node runtime. The test suite fails if any network code is linked into the binary.</p></div>
+    </div>
+
+    <h3>Alongside other tools</h3>
+    <p class="sub">cuddio is not the only tool in this space, and it may not be the right one for you.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Tool</th><th>Language</th><th>Focus</th></tr></thead>
+      <tbody>
+        <tr><td><code>redacted</code></td><td>Go</td><td>Claude Code hook that scrubs secrets from tool output</td></tr>
+        <tr><td><code>redactcli</code></td><td>Python</td><td>Redacts secrets from agent output, logs, diffs and CI</td></tr>
+        <tr><td>ShareClean</td><td>Python</td><td>Cleans logs, stack traces and config before sharing</td></tr>
+        <tr><td><a href="https://github.com/gitleaks/gitleaks">gitleaks</a></td><td>Go</td><td>Scans repositories for secrets; cuddio vendors its rules</td></tr>
+        <tr><td><strong>cuddio</strong></td><td>Go</td><td>Secrets and PII in text, logs and SQL dumps, with reversible placeholders, column-aware SQL and the clipboard</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="wrap">
+    <h2>What it does</h2>
+
+    <div class="feature" id="sql">
+      <div>
+        <h3>SQL dumps</h3>
+        <p>MySQL and MariaDB, PostgreSQL (including <code>COPY</code> blocks) and SQLite dumps, streamed in bounded memory. Every value in a sensitive column is hidden whole, pattern rules still run on every string, and the output stays valid SQL. The dialect is detected from the dump's header.</p>
+<pre class="code"><span class="p">$ </span>cuddio dump.sql -o dump.clean.sql
+<span class="p">$ </span>cuddio dump.sql --mode fake  <span class="c"># realistic fakes</span>
+<span class="p">$ </span>cuddio dump.sql --dialect postgres</pre>
+      </div>
+      <img src="gifs/sql.gif" width="1280" height="380" loading="lazy" alt="cuddio cleaning a MySQL users row: names, emails and password hashes become placeholders, then realistic fake values with --mode fake, then --check reports 38 values would be hidden.">
+    </div>
+
+    <div class="feature" id="restore">
+      <div>
+        <h3>Put the real values back</h3>
+        <p>Clean with <code>--map</code> to keep the placeholder mapping for the session: an owner-only file in your cache directory that expires after an hour. Paste the AI's reply into <code>cuddio restore</code> and the real values come back. Placeholders cuddio never handed out are left alone.</p>
+<pre class="code"><span class="p">$ </span>cuddio app.log --map
+<span class="p">$ </span>cuddio restore &lt; ai-answer.md
+<span class="p">$ </span>cuddio forget  <span class="c"># delete it now</span></pre>
+      </div>
+      <img src="gifs/restore.gif" width="1280" height="720" loading="lazy" alt="cuddio cleaning a log with --map, an AI answer that refers to EMAIL_1 and PASSWORD_1, and cuddio restore putting the real addresses and password back.">
+    </div>
+
+    <div class="feature" id="clipboard">
+      <div>
+        <h3>Clean the clipboard</h3>
+        <p>Copy, clean, paste. <code>cuddio --clip</code> works on Windows, WSL, macOS and Linux (wl-clipboard, xclip or xsel), and <code>restore --clip</code> puts the values back, kept out of Windows clipboard history.</p>
+<pre class="code"><span class="p">$ </span>cuddio --clip
+<span class="p">$ </span>cuddio restore --clip</pre>
+      </div>
+      <img src="gifs/clipboard.gif" width="1280" height="420" loading="lazy" alt="Pasting a database error with an IP address and a DSN password, running cuddio --clip, and pasting again to show placeholders.">
+    </div>
+
+    <div class="feature" id="ci">
+      <div>
+        <h3>Checks in CI</h3>
+        <p><code>--check</code> exits 1 when anything would be hidden; <code>--report</code> counts by rule. Neither ever prints a value, so they are safe in public build logs. Exit code 2 means an error, so a pipeline can tell "would redact" from "broke".</p>
+<pre class="code"><span class="p">$ </span>cuddio --check fixtures/support-log.txt
+<span class="p">$ </span>cuddio --report fixtures/support-log.txt
+<span class="p">$ </span>cuddio rules --category pii</pre>
+      </div>
+      <img src="gifs/check.gif" width="1280" height="420" loading="lazy" alt="cuddio --check on an nginx log reports 9 values and exit code 1, --report lists counts per rule, and --check on a clean file reports nothing to hide with exit code 0.">
+    </div>
+
+    <div class="feature" id="custom">
+      <div>
+        <h3>Your own rules</h3>
+        <p>A <code>.cuddio.yaml</code> in your project adds custom rules, allowlist entries and sensitive columns, and switches rules on or off. A global file in your config directory applies everywhere; the project file wins.</p>
+      </div>
+      <img src="gifs/config.gif" width="1280" height="520" loading="lazy" alt="Adding a .cuddio.yaml with an allowlisted address and a custom rule for internal host names, after which the hosts become HOST placeholders and the allowlisted address is kept.">
+    </div>
+  </div>
+</section>
+
+<section id="config">
+  <div class="wrap">
+    <h2>Configuration</h2>
+    <p class="sub">cuddio reads <code>cuddio/config.yaml</code> in your config directory (<code>~/.config</code>, <code>~/Library/Application Support</code> or <code>%AppData%</code>), then the nearest <code>.cuddio.yaml</code>, walking up to the repository root. <code>--config FILE</code> uses a file of your choice instead of the project one. Unknown settings are errors, and errors never repeat values from the file.</p>
+<pre class="code"><span class="c"># .cuddio.yaml</span>
+mode: placeholder
+rules:
+  enable: [uk-postcode]
+  disable: [high-entropy-assignment]
+  custom:
+    - id: internal-host
+      category: secret
+      label: HOST
+      pattern: '[a-z]+\.internal\.example\.com'
+allowlist:
+  values: [hello@example.com]
+  patterns: ['^test-']
+sql:
+  columns: [notes]
+  tables:
+    orders: [delivery_instructions]
+mapping:
+  ttl: 30m</pre>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Key</th><th>Default</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><code>mode</code></td><td><code>placeholder</code></td><td><code>placeholder</code> (reversible tokens) or <code>fake</code> (realistic fake values); <code>--mode</code> overrides it</td></tr>
+        <tr><td><code>placeholder.format</code></td><td><code>&lt;{label}_{n}&gt;</code></td><td>Token format; must contain <code>{label}</code> and <code>{n}</code></td></tr>
+        <tr><td><code>rules.enable</code>, <code>rules.disable</code></td><td>none</td><td>Rule IDs, categories (<code>secret</code>, <code>pii</code>) or <code>gitleaks</code>; IDs override categories</td></tr>
+        <tr><td><code>rules.custom</code></td><td>none</td><td>Your own rules: <code>id</code>, <code>category</code>, <code>label</code> and an RE2 <code>pattern</code>, with an optional <code>(?P&lt;value&gt;...)</code> group to hide only part of a match</td></tr>
+        <tr><td><code>allowlist.values</code>, <code>allowlist.patterns</code></td><td>none</td><td>Values never hidden, exactly or by RE2 pattern; reserved domains, loopback addresses and vendor documentation keys are always allowed</td></tr>
+        <tr><td><code>sql.columns</code></td><td>none</td><td>Extra sensitive columns in every table</td></tr>
+        <tr><td><code>sql.tables</code></td><td>none</td><td>Extra sensitive columns per table</td></tr>
+        <tr><td><code>mapping.ttl</code></td><td><code>1h</code></td><td>How long a <code>--map</code> mapping lasts</td></tr>
+        <tr><td><code>mapping.disabled</code></td><td><code>false</code></td><td>Refuse to store mappings; either file can set it and neither can unset it</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</section>
+
+<section id="rules">
+  <div class="wrap">
+    <h2>What cuddio detects</h2>
+    <p class="sub">242 rules: 29 of cuddio's own, and 213 derived from <a href="https://github.com/gitleaks/gitleaks">gitleaks</a>. <code>cuddio rules</code> lists them all with their state under your config.</p>
+
+    <h3>Personal data (PII)</h3>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Rule</th><th>Finds</th><th>Placeholder</th><th>Default</th></tr></thead>
+      <tbody>
+<tr><td><code>e164-phone</code></td><td>International numbers written in E.164 (<code>+</code> and country code)</td><td><code>&lt;PHONE_1&gt;</code></td><td><span class="on">on</span></td></tr>
+<tr><td><code>email</code></td><td>Email addresses, including URL-encoded ones (<code>alice%40example.com</code>)</td><td><code>&lt;EMAIL_1&gt;</code></td><td><span class="on">on</span></td></tr>
+<tr><td><code>home-directory</code></td><td>The username in <code>/home/x</code>, <code>/Users/x</code> and <code>C:\Users\x</code></td><td><code>&lt;USER_1&gt;</code></td><td><span class="on">on</span></td></tr>
+<tr><td><code>ip-address</code></td><td>Public IPv4 and IPv6 addresses</td><td><code>&lt;IP_1&gt;</code></td><td><span class="on">on</span></td></tr>
+<tr><td><code>payment-card</code></td><td>Visa, Mastercard, Amex and Discover numbers that pass the Luhn check</td><td><code>&lt;CARD_1&gt;</code></td><td><span class="on">on</span></td></tr>
+<tr><td><code>private-ip-address</code></td><td>Private, link-local and CGNAT addresses</td><td><code>&lt;IP_1&gt;</code></td><td><span class="off">off</span></td></tr>
+<tr><td><code>uk-ni-number</code></td><td>UK National Insurance numbers, with HMRC&rsquo;s never-issued prefixes rejected</td><td><code>&lt;NI_NUMBER_1&gt;</code></td><td><span class="on">on</span></td></tr>
+<tr><td><code>uk-phone</code></td><td>UK phone numbers, national and <code>+44</code> forms</td><td><code>&lt;PHONE_1&gt;</code></td><td><span class="on">on</span></td></tr>
+<tr><td><code>uk-postcode</code></td><td>UK postcodes (off by default: short codes in logs often look like them)</td><td><code>&lt;POSTCODE_1&gt;</code></td><td><span class="off">off</span></td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>Sensitive SQL columns</h3>
+    <p class="sub">In SQL dumps, every value in these columns is hidden, whatever it looks like. Each also matches with a prefix (<code>billing_email</code>, <code>customer_first_name</code>), except <code>name</code>, which matches only exactly so <code>product_name</code> is left alone.</p>
+    <div class="columns">
+      <code>email</code> <code>password</code> <code>phone</code> <code>mobile</code> <code>name</code> <code>first_name</code> <code>last_name</code> <code>full_name</code> <code>billing_name</code> <code>shipping_name</code> <code>customer_name</code> <code>contact_name</code> <code>display_name</code> <code>address</code> <code>postcode</code> <code>dob</code> <code>date_of_birth</code> <code>ip_address</code> <code>token</code> <code>remember_token</code> <code>api_token</code> <code>secret</code> <code>two_factor_secret</code> <code>two_factor_recovery_codes</code> <code>sessions.id</code> <code>sessions.payload</code>
+    </div>
+
+    <h3>Secrets</h3>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Rule</th><th>Finds</th><th>Placeholder</th><th>Default</th></tr></thead>
+      <tbody>
+<tr><td><code>anthropic-key</code></td><td>Anthropic API keys</td><td><code>&lt;ANTHROPIC_KEY_1&gt;</code></td><td><span class="on">on</span></td></tr>
+<tr><td><code>authorization-header</code></td><td><code>Authorization</code> header values</td><td><code>&lt;AUTH_1&gt;</code></td><td><span class="on">on</span></td></tr>
+<tr><td><code>aws-access-key</code></td><td>AWS access key IDs</td><td><code>&lt;AWS_KEY_1&gt;</code></td><td><span class="on">on</span></td></tr>
+<tr><td><code>aws-secret-key</code></td><td>AWS secret access keys</td><td><code>&lt;AWS_SECRET_1&gt;</code></td><td><span class="on">on</span></td></tr>
+<tr><td><code>bearer-token</code></td><td>Bearer tokens</td><td><code>&lt;TOKEN_1&gt;</code></td><td><span class="on">on</span></td></tr>
+<tr><td><code>cookie</code></td><td>Cookie and <code>Set-Cookie</code> values</td><td><code>&lt;COOKIE_1&gt;</code></td><td><span class="on">on</span></td></tr>
+<tr><td><code>github-token</code></td><td>GitHub personal access, OAuth, app and fine-grained tokens</td><td><code>&lt;GITHUB_TOKEN_1&gt;</code></td><td><span class="on">on</span></td></tr>
+<tr><td><code>google-api-key</code></td><td>Google API keys and OAuth client secrets</td><td><code>&lt;GOOGLE_KEY_1&gt;</code></td><td><span class="on">on</span></td></tr>
+<tr><td><code>high-entropy-assignment</code></td><td>Long, random-looking assigned values</td><td><code>&lt;SECRET_1&gt;</code></td><td><span class="on">on</span></td></tr>
+<tr><td><code>jwt</code></td><td>JSON Web Tokens</td><td><code>&lt;JWT_1&gt;</code></td><td><span class="on">on</span></td></tr>
+<tr><td><code>laravel-app-key</code></td><td>Laravel <code>APP_KEY</code></td><td><code>&lt;APP_KEY_1&gt;</code></td><td><span class="on">on</span></td></tr>
+<tr><td><code>openai-key</code></td><td>OpenAI API keys</td><td><code>&lt;OPENAI_KEY_1&gt;</code></td><td><span class="on">on</span></td></tr>
+<tr><td><code>private-key</code></td><td>PEM private key blocks</td><td><code>&lt;PRIVATE_KEY_1&gt;</code></td><td><span class="on">on</span></td></tr>
+<tr><td><code>secret-assignment</code></td><td>Values of <code>.env</code> keys that name a secret, commented-out lines included</td><td><code>&lt;SECRET_1&gt;</code></td><td><span class="on">on</span></td></tr>
+<tr><td><code>secret-field</code></td><td>Secret fields in JSON and PHP arrays (<code>"api_key": "..."</code>)</td><td><code>&lt;SECRET_1&gt;</code></td><td><span class="on">on</span></td></tr>
+<tr><td><code>slack-token</code></td><td>Slack bot, user and app tokens</td><td><code>&lt;SLACK_TOKEN_1&gt;</code></td><td><span class="on">on</span></td></tr>
+<tr><td><code>slack-webhook</code></td><td>Slack incoming webhook URLs</td><td><code>&lt;SLACK_WEBHOOK_1&gt;</code></td><td><span class="on">on</span></td></tr>
+<tr><td><code>stripe-key</code></td><td>Stripe secret, restricted and webhook signing keys</td><td><code>&lt;STRIPE_KEY_1&gt;</code></td><td><span class="on">on</span></td></tr>
+<tr><td><code>token-query-param</code></td><td>Tokens, keys and signatures in query strings</td><td><code>&lt;TOKEN_1&gt;</code></td><td><span class="on">on</span></td></tr>
+<tr><td><code>url-password</code></td><td>Passwords in URLs and DSNs (<code>mysql://app:pw@db</code>, <code>password=</code> in PDO DSNs)</td><td><code>&lt;PASSWORD_1&gt;</code></td><td><span class="on">on</span></td></tr>
+      </tbody>
+    </table></div>
+
+    <details>
+      <summary>213 rules derived from gitleaks</summary>
+      <p class="sub" style="margin-top:12px">Generated from gitleaks' default configuration, with its entropy checks and allowlists. Switch them all off with <code>rules: {disable: [gitleaks]}</code>, or one at a time by ID. Rules derived from <a href="https://github.com/gitleaks/gitleaks">gitleaks</a>, Copyright (c) 2019 Zachary Rice, used under the MIT licence.</p>
+      <div class="ids"><code>1password-secret-key</code> <code>1password-service-account-token</code> <code>adafruit-api-key</code> <code>adobe-client-id</code> <code>adobe-client-secret</code> <code>age-secret-key</code> <code>airtable-api-key</code> <code>airtable-personnal-access-token</code> <code>algolia-api-key</code> <code>alibaba-access-key-id</code> <code>alibaba-secret-key</code> <code>anthropic-admin-api-key</code> <code>anthropic-api-key</code> <code>artifactory-api-key</code> <code>artifactory-reference-token</code> <code>asana-client-id</code> <code>asana-client-secret</code> <code>atlassian-api-token</code> <code>authress-service-client-access-key</code> <code>aws-access-token</code> <code>aws-amazon-bedrock-api-key-long-lived</code> <code>aws-amazon-bedrock-api-key-short-lived</code> <code>azure-ad-client-secret</code> <code>beamer-api-token</code> <code>bitbucket-client-id</code> <code>bitbucket-client-secret</code> <code>bittrex-access-key</code> <code>bittrex-secret-key</code> <code>cisco-meraki-api-key</code> <code>clickhouse-cloud-api-secret-key</code> <code>clojars-api-token</code> <code>cloudflare-api-key</code> <code>cloudflare-global-api-key</code> <code>cloudflare-origin-ca-key</code> <code>codecov-access-token</code> <code>cohere-api-token</code> <code>coinbase-access-token</code> <code>confluent-access-token</code> <code>confluent-secret-key</code> <code>contentful-delivery-api-token</code> <code>curl-auth-header</code> <code>curl-auth-user</code> <code>databricks-api-token</code> <code>datadog-access-token</code> <code>defined-networking-api-token</code> <code>digitalocean-access-token</code> <code>digitalocean-pat</code> <code>digitalocean-refresh-token</code> <code>discord-api-token</code> <code>discord-client-id</code> <code>discord-client-secret</code> <code>doppler-api-token</code> <code>droneci-access-token</code> <code>dropbox-api-token</code> <code>dropbox-long-lived-api-token</code> <code>dropbox-short-lived-api-token</code> <code>duffel-api-token</code> <code>dynatrace-api-token</code> <code>easypost-api-token</code> <code>easypost-test-api-token</code> <code>etsy-access-token</code> <code>facebook-access-token</code> <code>facebook-page-access-token</code> <code>facebook-secret</code> <code>fastly-api-token</code> <code>finicity-api-token</code> <code>finicity-client-secret</code> <code>finnhub-access-token</code> <code>flickr-access-token</code> <code>flutterwave-encryption-key</code> <code>flutterwave-public-key</code> <code>flutterwave-secret-key</code> <code>flyio-access-token</code> <code>frameio-api-token</code> <code>freshbooks-access-token</code> <code>github-app-token</code> <code>github-fine-grained-pat</code> <code>github-oauth</code> <code>github-pat</code> <code>github-refresh-token</code> <code>gitlab-cicd-job-token</code> <code>gitlab-deploy-token</code> <code>gitlab-feature-flag-client-token</code> <code>gitlab-feed-token</code> <code>gitlab-incoming-mail-token</code> <code>gitlab-kubernetes-agent-token</code> <code>gitlab-oauth-app-secret</code> <code>gitlab-pat</code> <code>gitlab-pat-routable</code> <code>gitlab-ptt</code> <code>gitlab-rrt</code> <code>gitlab-runner-authentication-token</code> <code>gitlab-runner-authentication-token-routable</code> <code>gitlab-scim-token</code> <code>gitlab-session-cookie</code> <code>gitter-access-token</code> <code>gocardless-api-token</code> <code>grafana-api-key</code> <code>grafana-cloud-api-token</code> <code>grafana-service-account-token</code> <code>harness-api-key</code> <code>hashicorp-tf-api-token</code> <code>heroku-api-key</code> <code>heroku-api-key-v2</code> <code>hubspot-api-key</code> <code>huggingface-access-token</code> <code>huggingface-organization-api-token</code> <code>infracost-api-token</code> <code>intercom-api-key</code> <code>intra42-client-secret</code> <code>jfrog-api-key</code> <code>jfrog-identity-token</code> <code>jwt-base64</code> <code>kraken-access-token</code> <code>kucoin-access-token</code> <code>kucoin-secret-key</code> <code>launchdarkly-access-token</code> <code>linear-api-key</code> <code>linear-client-secret</code> <code>linkedin-client-id</code> <code>linkedin-client-secret</code> <code>lob-api-key</code> <code>lob-pub-api-key</code> <code>looker-client-id</code> <code>looker-client-secret</code> <code>mailchimp-api-key</code> <code>mailgun-private-api-token</code> <code>mailgun-pub-key</code> <code>mailgun-signing-key</code> <code>mapbox-api-token</code> <code>mattermost-access-token</code> <code>maxmind-license-key</code> <code>messagebird-api-token</code> <code>messagebird-client-id</code> <code>microsoft-teams-webhook</code> <code>netlify-access-token</code> <code>new-relic-browser-api-token</code> <code>new-relic-insert-key</code> <code>new-relic-user-api-id</code> <code>new-relic-user-api-key</code> <code>notion-api-token</code> <code>npm-access-token</code> <code>nytimes-access-token</code> <code>octopus-deploy-api-key</code> <code>okta-access-token</code> <code>openai-api-key</code> <code>openshift-user-token</code> <code>perplexity-api-key</code> <code>plaid-api-token</code> <code>plaid-client-id</code> <code>plaid-secret-key</code> <code>planetscale-api-token</code> <code>planetscale-oauth-token</code> <code>planetscale-password</code> <code>postman-api-token</code> <code>prefect-api-token</code> <code>privateai-api-token</code> <code>pulumi-api-token</code> <code>pypi-upload-token</code> <code>rapidapi-access-token</code> <code>readme-api-token</code> <code>rubygems-api-token</code> <code>scalingo-api-token</code> <code>sendbird-access-id</code> <code>sendbird-access-token</code> <code>sendgrid-api-token</code> <code>sendinblue-api-token</code> <code>sentry-access-token</code> <code>sentry-org-token</code> <code>sentry-user-token</code> <code>settlemint-application-access-token</code> <code>settlemint-personal-access-token</code> <code>settlemint-service-access-token</code> <code>shippo-api-token</code> <code>shopify-access-token</code> <code>shopify-custom-access-token</code> <code>shopify-private-app-access-token</code> <code>shopify-shared-secret</code> <code>sidekiq-secret</code> <code>sidekiq-sensitive-url</code> <code>slack-app-token</code> <code>slack-bot-token</code> <code>slack-config-access-token</code> <code>slack-config-refresh-token</code> <code>slack-legacy-bot-token</code> <code>slack-legacy-token</code> <code>slack-legacy-workspace-token</code> <code>slack-user-token</code> <code>slack-webhook-url</code> <code>snyk-api-token</code> <code>sonar-api-token</code> <code>sourcegraph-access-token</code> <code>square-access-token</code> <code>squarespace-access-token</code> <code>stripe-access-token</code> <code>sumologic-access-id</code> <code>sumologic-access-token</code> <code>telegram-bot-api-token</code> <code>travisci-access-token</code> <code>twilio-api-key</code> <code>twitch-api-token</code> <code>twitter-access-secret</code> <code>twitter-access-token</code> <code>twitter-api-key</code> <code>twitter-api-secret</code> <code>twitter-bearer-token</code> <code>typeform-api-token</code> <code>vault-batch-token</code> <code>vault-service-token</code> <code>yandex-access-token</code> <code>yandex-api-key</code> <code>yandex-aws-access-token</code> <code>zendesk-secret-key</code></div>
+    </details>
+  </div>
+</section>
+
+<section id="security">
+  <div class="wrap">
+    <h2>Security and your data</h2>
+    <div class="grid">
+      <div class="card"><h3>Nothing is sent</h3><p>cuddio never makes a network connection. The tests fail if a network package is imported or any network code is linked into the binary.</p></div>
+      <div class="card"><h3>Your input is never changed</h3><p>Input files are only read. <code>-o</code> writes a new file through a temporary file and refuses the input itself, even through a link.</p></div>
+      <div class="card"><h3>Mappings are opt-in</h3><p>Only <code>--map</code> stores anything: an owner-only, unencrypted file in your cache directory that expires after an hour. <code>cuddio forget</code> deletes it now.</p></div>
+      <div class="card"><h3>Values stay out of output</h3><p>Errors, <code>--check</code> and <code>--report</code> never print a matched value, and config errors never repeat what is in your config.</p></div>
+    </div>
+    <div class="notice">
+      <p><strong>Use at your own risk.</strong> Redaction is best effort: a clean result is not a guarantee that no secret or personal data remains, so review the output before you share it. cuddio reduces the risk of sharing personal data; it does not by itself make sharing it compliant with UK GDPR. It does not detect names or addresses in free text, or secrets with no recognisable shape. The copy you made before running <code>--clip</code> stays in any clipboard history.</p>
+      <p>Details, and how to report a problem privately, are in <a href="https://github.com/phoenix1331/cuddio/blob/main/SECURITY.md">SECURITY.md</a>.</p>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="links">
+      <a href="https://github.com/phoenix1331/cuddio">GitHub</a>
+      <a href="https://pkg.go.dev/github.com/phoenix1331/cuddio">pkg.go.dev</a>
+      <a href="https://github.com/phoenix1331/cuddio/blob/main/CHANGELOG.md">Changelog</a>
+      <a href="https://github.com/phoenix1331/cuddio/blob/main/CONTRIBUTING.md">Contributing</a>
+      <a href="https://github.com/phoenix1331/cuddio/blob/main/LICENSE">MIT licence</a>
+    </div>
+    <p>cuddio includes rules derived from <a href="https://github.com/gitleaks/gitleaks">gitleaks</a> (MIT licence, Copyright (c) 2019 Zachary Rice). Every example on this page uses fake data.</p>
+  </div>
+</footer>
+
+<script>
+document.querySelectorAll('.copy').forEach(function (button) {
+  button.addEventListener('click', function () {
+    var text = button.parentElement.querySelector('pre').textContent;
+    var done = function () {
+      button.textContent = 'Copied';
+      button.classList.add('done');
+      setTimeout(function () { button.textContent = 'Copy'; button.classList.remove('done'); }, 1600);
+    };
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(done);
+      return;
+    }
+    var area = document.createElement('textarea');
+    area.value = text;
+    document.body.appendChild(area);
+    area.select();
+    document.execCommand('copy');
+    area.remove();
+    done();
+  });
+});
+</script>
+</body>
+</html>

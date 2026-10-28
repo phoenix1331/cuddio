@@ -1,0 +1,50 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.27.x'
+
+      - uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.15
+          install-only: true
+
+      # The full gate again, on exactly what is being released
+      - run: sh scripts/check.sh
+
+      - run: sh .github/scripts/check-module-size.sh
+
+      # Fails before anything is published if CHANGELOG.md has no section for the tag
+      - run: sh .github/scripts/release-notes.sh "$GITHUB_REF_NAME" > "$RUNNER_TEMP/notes.md"
+
+      # GoReleaser cannot stop between building and publishing, so a snapshot
+      # proves the archives hold only the binary, LICENSE and README.md first
+      - uses: goreleaser/goreleaser-action@v7
+        with:
+          version: '~> v2'
+          args: release --snapshot --clean
+
+      - run: sh .github/scripts/check-archives.sh
+
+      - uses: goreleaser/goreleaser-action@v7
+        with:
+          version: '~> v2'
+          args: release --clean --release-notes ${{ runner.temp }}/notes.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}

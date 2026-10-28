@@ -37,6 +37,50 @@ snapshot:
 changelog:
   disable: true
 
-# Snapshot builds only until the release workflow, Homebrew tap and Scoop bucket are set up
 release:
-  disable: true
+  github:
+    owner: phoenix1331
+    name: cuddio
+  name_template: '{{ .Tag }}'
+
+# The tap and bucket are separate repositories, so GITHUB_TOKEN cannot write
+# to them; TAP_GITHUB_TOKEN is a fine-grained token with contents write on both
+homebrew_casks:
+  - name: cuddio
+    repository:
+      owner: phoenix1331
+      name: homebrew-tap
+      token: '{{ .Env.TAP_GITHUB_TOKEN }}'
+    directory: Casks
+    homepage: https://phoenix1331.github.io/cuddio
+    description: Hide secrets and PII in logs, SQL dumps and text before you paste them into AI tools
+    license: MIT
+    commit_author:
+      name: phoenix1331
+      email: darren@phoenix1331.co.uk
+    commit_msg_template: 'chore: update cuddio to {{ .Tag }}'
+    generate_completions_from_executable:
+      executable: cuddio
+      args: [completion]
+      shell_parameter_format: cobra
+    # The binary is not notarised, so macOS would quarantine it
+    hooks:
+      post:
+        install_steps: |
+          on_macos do
+            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ .StagedPath }}/cuddio"]
+          end
+
+scoops:
+  - name: cuddio
+    repository:
+      owner: phoenix1331
+      name: scoop-bucket
+      token: '{{ .Env.TAP_GITHUB_TOKEN }}'
+    homepage: https://phoenix1331.github.io/cuddio
+    description: Hide secrets and PII in logs, SQL dumps and text before you paste them into AI tools
+    license: MIT
+    commit_author:
+      name: phoenix1331
+      email: darren@phoenix1331.co.uk
+    commit_msg_template: 'chore: update cuddio to {{ .Tag }}'

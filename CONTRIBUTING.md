@@ -68,6 +68,8 @@ Steps:
 
 The vendored gitleaks rules are generated: never edit `internal/rules/gitleaks_gen.go`. `sh scripts/update-gitleaks-rules.sh` regenerates it from the pinned upstream release. Default sensitive SQL columns are in `internal/sqlscan/columns.go`.
 
+After adding or updating a dependency, run `sh scripts/update-notices.sh`: it regenerates `internal/notices/notices.txt`, the licence text `cuddio licences` prints, and the tests fail until it has been run. Releases are covered in [`RELEASING.md`](RELEASING.md).
+
 ## Test data
 
 Every value in fixtures, examples and issues must be obviously fake: `example.com` or `example.invalid` addresses, Ofcom drama-range phone numbers (07700 900xxx), documentation IP ranges (192.0.2.x, 198.51.100.x, 203.0.113.x, 2001:db8::), published test card numbers and vendor documentation keys. Fixtures write anything shaped like a vendor key as a template (`{{fake 24}}`) that the test expands. Large inputs are generated in code, never committed: the module zip has a 1 MB budget.

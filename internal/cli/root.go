@@ -123,7 +123,7 @@ func newApp(env Env) *app {
 	cmd.Flags().BoolVar(&flags.report, "report", false, "print how many values each rule would hide, not the cleaned text")
 	cmd.Flags().BoolVar(&flags.mapping, "map", false, "store the placeholder mapping (owner-only, expires) so restore can put the real values back")
 	cmd.Flags().StringVar(&flags.mode, "mode", "", "placeholder (<EMAIL_1>, reversible) or fake (realistic fake values, so a dump still imports); default from config, else placeholder")
-	cmd.AddCommand(a.newRestoreCmd(), a.newForgetCmd(), a.newRulesCmd())
+	cmd.AddCommand(a.newRestoreCmd(), a.newForgetCmd(), a.newRulesCmd(), a.newLicencesCmd())
 	cmd.SetVersionTemplate("cuddio {{.Version}}\n")
 	cmd.SetIn(env.Stdin)
 	cmd.SetOut(env.Stdout)

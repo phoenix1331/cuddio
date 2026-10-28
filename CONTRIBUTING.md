@@ -35,6 +35,8 @@ The tests include a no-network check: they fail if the build gains a network pac
 
 `sh scripts/e2e.sh` builds the binary and runs every command on generated input, checking output and exit codes. It points the config and cache folders at a temporary directory, so your own settings and stored mappings are never touched. CI runs it on Linux, plus macOS and Windows (Git Bash, and `.github/scripts/e2e.ps1` under Windows PowerShell 5.1) when the workflow is started by hand.
 
+`sh scripts/render-gifs.sh` re-records the GIFs in `docs/gifs/` from the VHS tapes in `tapes/` (all six, or name some: `sh scripts/render-gifs.sh hero sql`). It needs [VHS](https://github.com/charmbracelet/vhs), `ttyd` and `ffmpeg`, runs in WSL or Linux, and records each tape in a fresh copy of `examples/` with its own config and cache. The clipboard tape renders only in WSL, and puts your clipboard back afterwards. Re-render after any change to cuddio's output or the examples.
+
 In WSL, `sh scripts/test-windows.sh` runs every package's tests as native Windows programs: each test binary is cross-compiled for Windows and started through WSL's Windows interop, so Windows behaviour can be checked without CI.
 
 ## Git hooks

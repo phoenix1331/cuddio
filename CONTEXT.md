@@ -30,6 +30,9 @@ First of a planned set of Welsh-named Go tools sharing one visual style for READ
 | `scripts/e2e.sh` | End-to-end run of the built binary, locally and in CI's `e2e` job |
 | `scripts/test-windows.sh` | In WSL: every package's tests cross-compiled for Windows and run natively through interop |
 | `examples/` | Fake files for users to try, one command each in `examples/README.md`; `examples_test.go` at the root cleans every one with the real rules |
+| `tapes/` | VHS tapes: `settings.tape` (shared look, `Set` only), `setup.tape` (hidden `cd` and prompt), and `hero`, `sql`, `restore`, `clipboard`, `check`, `config` |
+| `docs/` | GitHub Pages site and `docs/gifs/`; a separate module (`docs/go.mod`) so it stays out of cuddio's module zip |
+| `scripts/render-gifs.sh` | Builds cuddio, records each tape in a fresh copy of `examples/` with temp config and cache, into `docs/gifs/` |
 | `.github/scripts/` | `check-archives.sh` (release archive allow list), `check-module-size.sh` (module zip budget), `e2e.ps1` (Windows PowerShell 5.1 checks) |
 | `.githooks/` | `commit-msg` and `pre-commit`, enabled with `git config core.hooksPath .githooks` |
 
@@ -89,6 +92,11 @@ First of a planned set of Welsh-named Go tools sharing one visual style for READ
 | Both workflows have `workflow_dispatch`; `test` and `e2e` run Linux only on push and pull request, all three OSes only when started by hand | The repository is private until release, where macOS minutes cost 10x and Windows 2x; one month's allowance went in a day. Revisit once public, when standard runners are free |
 | Windows checked locally with `scripts/test-windows.sh` (no `-race`: cross-compiling it needs cgo; the three no-network tests skipped: they need the `go` command); macOS on a family Mac | Real Windows APIs and file system without CI minutes or changing PowerShell's execution policy |
 | `Execute` always passes cobra a non-nil argument list | Given nil, cobra reads `os.Args`; found when a Windows test binary's `-test.skip` pattern became cuddio's input file |
+| `docs/` is a nested module (`docs/go.mod`, no Go code) | The six GIFs (about 700 KB) put the module zip at 1.4 MB, over the 1 MB budget; Go leaves nested modules out of the parent's zip (`.claude/docs/module-zip-spike.md`), so `go install` never downloads images |
+| GIFs: Catppuccin Mocha, DejaVu Sans Mono 16, 1280 wide, height per tape; recorded with VHS in WSL, never the Docker image | One look for the family of Welsh-named tools; DejaVu is widely installed and covers Welsh characters such as ŷ |
+| `settings.tape` holds only `Set`; each tape sources it, sets its height, then sources `setup.tape` | VHS ignores `Set` after the first action, so per-tape heights were silently dropped when the shared tape also held the hidden setup |
+| The clipboard tape uses hidden `copy` and `paste` helpers on the Windows clipboard and renders only in WSL; `render-gifs.sh` saves and restores the clipboard | Shows the real `--clip` flow without leaving the demo text on the developer's clipboard |
+| The postcode field was taken out of `examples/laravel.log` | `uk-postcode` is off by default, so a visible postcode in the hero GIF read as a leak |
 | The clipboard helper process runs `os.Executable()`, not `os.Args[0]` | `os.Args[0]` can be a bare name, which Windows `exec` will not look up in the current directory |
 | Dependabot ignores `github.com/pingcap/tidb/pkg/parser`; bump its pseudo-version by hand (`/1331-compat`) | It has no semver tags, so Dependabot picks the parent repo's `v2.1.0-rc.5+incompatible`, which lacks the package, and the grouped Go update failed every week |
 | Mapping store: a file where its folder should be is an error ("the cache path is a file, not a folder") on every platform | Found by Windows CI: listing a file there reports "not found", so the store read as empty and `--map` wrote output before failing to save |

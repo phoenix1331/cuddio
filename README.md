@@ -149,6 +149,51 @@ Windows and WSL use PowerShell, macOS `pbcopy`/`pbpaste`, and Linux `wl-clipboar
 
 <p align="center"><img src="docs/gifs/clipboard.gif" alt="Pasting a database error with an IP address and a DSN password, running cuddio --clip, and pasting again to show placeholders." width="900"></p>
 
+### One-key redaction
+
+Bind `cuddio --clip` to a keyboard shortcut and redaction becomes copy, press the shortcut, paste, with no terminal. Shortcuts do not see your terminal's `PATH`, so each one uses Cuddio's full path: find it with `where.exe cuddio` (Windows) or `command -v cuddio` (macOS and Linux).
+
+If you also want to put values back, use `--clip --map` in the cleaning shortcut and make a second one for `restore --clip`.
+
+<details>
+<summary>Windows</summary>
+
+1. Right-click the desktop and choose *New, Shortcut*.
+2. For the location, enter Cuddio's full path followed by `--clip`, for example `"C:\Users\you\scoop\shims\cuddio.exe" --clip`, and name it *Cuddio: clean clipboard*.
+3. Right-click the new shortcut, choose *Properties*, click in *Shortcut key* and press the keys you want, such as Ctrl+Alt+H.
+4. Set *Run* to *Minimized* (Windows' spelling), so no window flashes up, and click *OK*.
+
+Windows only honours shortcut keys for shortcuts on the desktop or in the Start menu, so leave it there (or move it to the Start menu). If you use Cuddio in WSL, install the Windows build for this (Scoop or the release download): it starts faster than going through WSL.
+
+</details>
+
+<details>
+<summary>macOS</summary>
+
+1. Open the Shortcuts app and create a new shortcut named *Cuddio: clean clipboard*.
+2. Add the *Run Shell Script* action, with the script `/opt/homebrew/bin/cuddio --clip` (`/usr/local/bin/cuddio` on Intel Macs, or the path `command -v cuddio` prints).
+3. Optionally, add a *Show Notification* action after it, so you know it ran.
+4. Open the shortcut's details (the *i* button), choose *Add Keyboard Shortcut*, and press the keys you want, such as Control-Option-Command-H.
+
+The first time, Shortcuts asks to allow running scripts: turn on *Allow Running Scripts* in Shortcuts' settings, under *Advanced*.
+
+</details>
+
+<details>
+<summary>Linux</summary>
+
+**GNOME:** *Settings, Keyboard, View and Customise Shortcuts, Custom Shortcuts*, then *+*. **KDE Plasma:** *System Settings, Shortcuts, Add New, Command or Script*.
+
+Use Cuddio's full path as the command. To see what happened, pass Cuddio's one-line message (which never holds a value) to `notify-send`:
+
+```bash
+sh -c 'notify-send Cuddio "$(/home/you/go/bin/cuddio --clip 2>&1)"'
+```
+
+Cuddio needs `wl-clipboard` (Wayland) or `xclip` or `xsel` (X11). If the shortcut seems to do nothing, run the same command in a terminal to see Cuddio's message.
+
+</details>
+
 ### CI checks
 
 ```bash

@@ -1,0 +1,51 @@
+name: Bug report
+description: cuddio crashed, errored, or did something other than what the docs say
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Never paste real secrets or personal data here, even partly redacted.** Issues are public. Replace every real value with an obviously fake one in the same shape (`alice@example.com`, `07700 900123`, `203.0.113.9`).
+        If cuddio printed, stored or sent a value it should not have, report it privately as a security issue instead.
+  - type: input
+    id: version
+    attributes:
+      label: cuddio version
+      description: Output of `cuddio --version`
+      placeholder: cuddio v0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options: [Linux, macOS, Windows, WSL, Other]
+    validations:
+      required: true
+  - type: input
+    id: command
+    attributes:
+      label: Command
+      description: The exact command you ran
+      placeholder: cuddio app.log -o app.clean.log
+    validations:
+      required: true
+  - type: textarea
+    id: input
+    attributes:
+      label: Input (fake data only)
+      description: The smallest input that shows the problem, with every real value replaced
+      render: text
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened
+      description: Output and error messages (cuddio never prints matched values, but check before pasting)
+    validations:
+      required: true

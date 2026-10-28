@@ -1,0 +1,38 @@
+name: False positive
+description: cuddio hid something that is not a secret or personal data
+labels: [false positive]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks: false positives make output harder to read. If the value is safe to share in general (a public key ID, a documentation address), say why.
+        **Use fake data in the same shape**, not the real value, unless it is genuinely public.
+  - type: input
+    id: version
+    attributes:
+      label: cuddio version
+      placeholder: cuddio v0.1.0
+    validations:
+      required: true
+  - type: textarea
+    id: input
+    attributes:
+      label: Input
+      description: A line or two showing the value in context
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Output
+      description: What cuddio wrote. `cuddio --report` on the same input names the rule that matched
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why this is not sensitive
+    validations:
+      required: true

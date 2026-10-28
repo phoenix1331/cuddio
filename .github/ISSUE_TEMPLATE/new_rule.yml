@@ -1,0 +1,42 @@
+name: New rule
+description: Suggest a kind of secret or personal data cuddio should detect
+labels: [new rule]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use made-up examples only. `CONTRIBUTING.md` explains how rules are written and tested, if you would like to open a pull request.
+  - type: input
+    id: what
+    attributes:
+      label: What should be detected
+      placeholder: Mailgun API keys
+    validations:
+      required: true
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options: [secret, pii]
+    validations:
+      required: true
+  - type: textarea
+    id: format
+    attributes:
+      label: Format
+      description: How to recognise it (prefix, length, characters, surrounding keywords), with a link to the vendor's documentation
+    validations:
+      required: true
+  - type: textarea
+    id: examples
+    attributes:
+      label: Fake examples
+      description: Values that should match, and near misses that should not
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: noise
+    attributes:
+      label: False positive risk
+      description: What else could look like this? Should the rule be off by default?

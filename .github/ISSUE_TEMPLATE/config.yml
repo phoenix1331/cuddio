@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security issue
+    url: https://github.com/phoenix1331/cuddio/security/advisories/new
+    about: Report privately anything that makes cuddio print, store or send a value it should not. Never post it in a public issue.

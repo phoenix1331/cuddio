@@ -1,0 +1,43 @@
+name: False negative
+description: cuddio missed a secret or personal data
+labels: [false negative]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Never paste the real value, even partly redacted, even if you have already rotated it.** Issues are public and get copied and indexed.
+        Make up a fake value with the same shape instead: same prefix, length and characters, and the same text around it. For example, if `sk_live_` followed by 24 letters and digits was missed, write `sk_live_` followed by 24 made-up characters.
+  - type: input
+    id: version
+    attributes:
+      label: cuddio version
+      placeholder: cuddio v0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What was missed
+      options: [API key or token, Password, Email or phone number, Other personal data, SQL column value, Other]
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: Fake example
+      description: A made-up value in the same shape, with the text around it (log line, config line, SQL row)
+      render: text
+    validations:
+      required: true
+  - type: checkboxes
+    id: fake
+    attributes:
+      label: Confirmation
+      options:
+        - label: Every value above is made up; none of it is real, rotated or partly redacted
+          required: true
+  - type: textarea
+    id: source
+    attributes:
+      label: Where this format comes from
+      description: The vendor or tool that produces it, and a link to its documentation if there is one

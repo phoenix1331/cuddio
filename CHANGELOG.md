@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-28
+
 ### Added
 
 - `cuddio --version` reports the release version, or the module version for `go install` builds
@@ -21,7 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Config files are checked as they load: invalid patterns, placeholder formats, modes, negative mapping TTLs and duplicate custom rule IDs are reported with the file name, never the offending value
 - About 200 secret rules vendored from gitleaks v8.30.1 (GitLab, npm, SendGrid, Shopify, DigitalOcean, Twilio and many more), on by default with gitleaks' entropy and allowlist checks; switch them all off with `rules.disable: [gitleaks]` or one at a time by ID. Cuddio's own rules win when both match the same value
 - Config errors never repeat a value from the file: unknown settings and rule names are named only as a near miss of a real one ("did you mean disable?"), and invalid custom rule IDs and categories are reported by position
-- Passwords in PDO DSNs (`pgsql:host=db;password=...`) and URL-encoded email addresses (`?email=alice%40example.com`) are now hidden
+- Passwords in PDO DSNs (`pgsql:host=db;password=...`) and URL-encoded email addresses (`?email=alice%40example.com`) are hidden
 - Only the secret part of a match is replaced (`DB_PASSWORD=<SECRET_1>`, `mysql://app:<PASSWORD_1>@db`), and empty values, `null`, references such as `${DB_PASSWORD}` and existing placeholders are left alone, so cleaning output twice changes nothing
 - SQL dumps are cleaned as SQL: `.sql` files, `--format sql` or `--dialect`. MySQL and MariaDB (`mysqldump`), PostgreSQL (`pg_dump`, including `COPY ... FROM stdin` blocks) and SQLite (`sqlite3 .dump`) are supported, and the output stays valid SQL. Every string value and comment goes through the rules, and whole values are hidden in sensitive columns (`email`, `password`, `phone`, `name`, `address`, `postcode`, `remember_token` and more, `billing_email`-style names too, plus Laravel's `sessions.id` and `payload`) even when no pattern matches them
 - The dialect is detected from the start of the dump; `--dialect mysql|postgres|sqlite` sets it when Cuddio cannot tell
@@ -37,7 +39,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `cuddio licences` (or `licenses`) prints the licences of Cuddio and the code built into it
 - Release builds for Linux, macOS and Windows on amd64 and arm64, installable with `brew install phoenix1331/tap/cuddio` (with shell completions) or from the `phoenix1331` Scoop bucket
 - UTF-16 input (what Windows PowerShell 5.1 writes with `>` and `Out-File`) is refused with instructions to convert it, instead of passing through with nothing hidden; `--help` advises giving Cuddio the file name and `-o` in Windows PowerShell 5.1, since `|` and `>` re-encode text
-- On Windows, `--map`, `restore` and `forget` now report a file sitting where the cache folder should be, as on Linux and macOS, instead of treating it as an empty store (so `--map` no longer writes output it then cannot save a mapping for)
 - `--map` refuses to store a mapping when the input already uses one of the session's placeholders for something else (such as cleaning cleaned output), since restore could not tell them apart; placeholder-shaped text in the input is otherwise kept, and new placeholders skip its numbers
 
-[Unreleased]: https://github.com/phoenix1331/cuddio/commits/main
+[Unreleased]: https://github.com/phoenix1331/cuddio/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/phoenix1331/cuddio/releases/tag/v0.1.0

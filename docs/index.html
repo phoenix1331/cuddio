@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>cuddio: hide what matters before you paste</title>
+<title>Cuddio: hide what matters before you paste</title>
 <meta name="description" content="A local-only Go CLI that hides secrets and PII in logs, .env files and MySQL, PostgreSQL and SQLite dumps before you share them with AI tools. Reversible placeholders, column-aware SQL redaction, clipboard support and CI checks.">
 <meta property="og:type" content="website">
-<meta property="og:title" content="cuddio: hide what matters before you paste">
+<meta property="og:title" content="Cuddio: hide what matters before you paste">
 <meta property="og:description" content="Hide secrets and PII in logs, SQL dumps and text before you paste them into AI tools. Local only, single binary, reversible placeholders.">
 <meta property="og:url" content="https://phoenix1331.github.io/cuddio/">
 <meta property="og:image" content="https://phoenix1331.github.io/cuddio/gifs/hero.gif">
@@ -148,10 +148,10 @@ footer .links { display: flex; flex-wrap: wrap; gap: 8px 20px; }
 
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="#" aria-label="cuddio, back to top">
+    <a class="brand" href="#" aria-label="Cuddio, back to top">
       <picture>
         <source srcset="cuddio-logo-white-header.png" media="(prefers-color-scheme: dark)">
-        <img src="cuddio-logo-dark-header.png" width="124" height="36" alt="cuddio">
+        <img src="cuddio-logo-dark-header.png" width="124" height="36" alt="Cuddio">
       </picture>
     </a>
     <nav class="links" aria-label="Sections">
@@ -169,15 +169,15 @@ footer .links { display: flex; flex-wrap: wrap; gap: 8px 20px; }
 <div class="wrap hero">
   <span class="eyebrow">Local only &middot; single binary &middot; no network</span>
   <h1>Hide what matters <em>before you paste.</em></h1>
-  <p class="lede">cuddio hides <strong>secrets</strong> and <strong>PII</strong> (personally identifiable information) in logs, <code>.env</code> files and MySQL, PostgreSQL and SQLite dumps before you share them with AI tools. Values become placeholders like <code>&lt;EMAIL_1&gt;</code>, so the AI can still tell them apart, and <code>cuddio restore</code> puts the real values back into its answer.</p>
+  <p class="lede">Cuddio hides <strong>secrets</strong> and <strong>PII</strong> (personally identifiable information) in logs, <code>.env</code> files and MySQL, PostgreSQL and SQLite dumps before you share them with AI tools. Values become placeholders like <code>&lt;EMAIL_1&gt;</code>, so the AI can still tell them apart, and <code>cuddio restore</code> puts the real values back into its answer.</p>
 
   <figure class="shot">
-    <img src="gifs/hero.gif" width="1280" height="380" alt="A terminal showing two Laravel log lines with an email, phone number, card number, IP address and tokens, then the same lines through cuddio with each value replaced by a placeholder such as EMAIL_1 and CARD_1.">
+    <img src="gifs/hero.gif" width="1280" height="380" alt="A terminal showing two Laravel log lines with an email, phone number, card number, IP address and tokens, then the same lines through Cuddio with each value replaced by a placeholder such as EMAIL_1 and CARD_1.">
     <figcaption>Two lines of a Laravel log, before and after.</figcaption>
   </figure>
 
   <div class="name" aria-label="About the name">
-    <span class="word">cuddio</span>
+    <span class="word">Cuddio</span>
     <span class="say">/KITH-yo/</span>
     <span>Welsh for <em>to hide</em>. The <em>dd</em> is the <em>th</em> in <em>this</em>.</span>
   </div>
@@ -204,8 +204,8 @@ scoop install cuddio</pre><button class="copy" type="button">Copy</button></div>
 
 <section id="why">
   <div class="wrap">
-    <h2>Why cuddio</h2>
-    <p class="sub">Developers paste logs, stack traces, config and database dumps into AI chats every day, and those often hold API keys and passwords as well as customers' emails, phone numbers and names. Sending personal data to a third-party AI service can breach UK GDPR and company policy, even when nobody meant any harm. cuddio cleans the text first, on your machine.</p>
+    <h2>Why Cuddio</h2>
+    <p class="sub">Developers paste logs, stack traces, config and database dumps into AI chats every day, and those often hold API keys and passwords as well as customers' emails, phone numbers and names. Sending personal data to a third-party AI service can breach UK GDPR and company policy, even when nobody meant any harm. Cuddio cleans the text first, on your machine.</p>
     <div class="grid">
       <div class="card"><h3>Reversible placeholders</h3><p>The same value always gets the same token, so the AI can reason about which customer is which. <code>cuddio restore</code> swaps the real values back into its answer.</p></div>
       <div class="card"><h3>SQL-aware</h3><p>Reads <code>CREATE TABLE</code> and <code>INSERT</code> columns, hides every value in sensitive columns, and keeps the dump valid SQL. Fake mode writes realistic values so it still imports.</p></div>
@@ -216,15 +216,15 @@ scoop install cuddio</pre><button class="copy" type="button">Copy</button></div>
     </div>
 
     <h3>Alongside other tools</h3>
-    <p class="sub">cuddio is not the only tool in this space, and it may not be the right one for you.</p>
+    <p class="sub">Cuddio is not the only tool in this space, and it may not be the right one for you.</p>
     <div class="table-wrap"><table>
       <thead><tr><th>Tool</th><th>Language</th><th>Focus</th></tr></thead>
       <tbody>
         <tr><td><code>redacted</code></td><td>Go</td><td>Claude Code hook that scrubs secrets from tool output</td></tr>
         <tr><td><code>redactcli</code></td><td>Python</td><td>Redacts secrets from agent output, logs, diffs and CI</td></tr>
         <tr><td>ShareClean</td><td>Python</td><td>Cleans logs, stack traces and config before sharing</td></tr>
-        <tr><td><a href="https://github.com/gitleaks/gitleaks">gitleaks</a></td><td>Go</td><td>Scans repositories for secrets; cuddio vendors its rules</td></tr>
-        <tr><td><strong>cuddio</strong></td><td>Go</td><td>Secrets and PII in text, logs and SQL dumps, with reversible placeholders, column-aware SQL and the clipboard</td></tr>
+        <tr><td><a href="https://github.com/gitleaks/gitleaks">gitleaks</a></td><td>Go</td><td>Scans repositories for secrets; Cuddio vendors its rules</td></tr>
+        <tr><td><strong>Cuddio</strong></td><td>Go</td><td>Secrets and PII in text, logs and SQL dumps, with reversible placeholders, column-aware SQL and the clipboard</td></tr>
       </tbody>
     </table></div>
   </div>
@@ -242,18 +242,18 @@ scoop install cuddio</pre><button class="copy" type="button">Copy</button></div>
 <span class="p">$ </span>cuddio dump.sql --mode fake  <span class="c"># realistic fakes</span>
 <span class="p">$ </span>cuddio dump.sql --dialect postgres</pre>
       </div>
-      <img src="gifs/sql.gif" width="1280" height="380" loading="lazy" alt="cuddio cleaning a MySQL users row: names, emails and password hashes become placeholders, then realistic fake values with --mode fake, then --check reports 38 values would be hidden.">
+      <img src="gifs/sql.gif" width="1280" height="380" loading="lazy" alt="Cuddio cleaning a MySQL users row: names, emails and password hashes become placeholders, then realistic fake values with --mode fake, then --check reports 38 values would be hidden.">
     </div>
 
     <div class="feature" id="restore">
       <div>
         <h3>Put the real values back</h3>
-        <p>Clean with <code>--map</code> to keep the placeholder mapping for the session: an owner-only file in your cache directory that expires after an hour. Paste the AI's reply into <code>cuddio restore</code> and the real values come back. Placeholders cuddio never handed out are left alone.</p>
+        <p>Clean with <code>--map</code> to keep the placeholder mapping for the session: an owner-only file in your cache directory that expires after an hour. Paste the AI's reply into <code>cuddio restore</code> and the real values come back. Placeholders Cuddio never handed out are left alone.</p>
 <pre class="code"><span class="p">$ </span>cuddio app.log --map
 <span class="p">$ </span>cuddio restore &lt; ai-answer.md
 <span class="p">$ </span>cuddio forget  <span class="c"># delete it now</span></pre>
       </div>
-      <img src="gifs/restore.gif" width="1280" height="720" loading="lazy" alt="cuddio cleaning a log with --map, an AI answer that refers to EMAIL_1 and PASSWORD_1, and cuddio restore putting the real addresses and password back.">
+      <img src="gifs/restore.gif" width="1280" height="720" loading="lazy" alt="Cuddio cleaning a log with --map, an AI answer that refers to EMAIL_1 and PASSWORD_1, and cuddio restore putting the real addresses and password back.">
     </div>
 
     <div class="feature" id="clipboard">
@@ -290,7 +290,7 @@ scoop install cuddio</pre><button class="copy" type="button">Copy</button></div>
 <section id="config">
   <div class="wrap">
     <h2>Configuration</h2>
-    <p class="sub">cuddio reads <code>cuddio/config.yaml</code> in your config directory (<code>~/.config</code>, <code>~/Library/Application Support</code> or <code>%AppData%</code>), then the nearest <code>.cuddio.yaml</code>, walking up to the repository root. <code>--config FILE</code> uses a file of your choice instead of the project one. Unknown settings are errors, and errors never repeat values from the file.</p>
+    <p class="sub">Cuddio reads <code>cuddio/config.yaml</code> in your config directory (<code>~/.config</code>, <code>~/Library/Application Support</code> or <code>%AppData%</code>), then the nearest <code>.cuddio.yaml</code>, walking up to the repository root. <code>--config FILE</code> uses a file of your choice instead of the project one. Unknown settings are errors, and errors never repeat values from the file.</p>
 <pre class="code"><span class="c"># .cuddio.yaml</span>
 mode: placeholder
 rules:
@@ -329,8 +329,8 @@ mapping:
 
 <section id="rules">
   <div class="wrap">
-    <h2>What cuddio detects</h2>
-    <p class="sub">242 rules: 29 of cuddio's own, and 213 derived from <a href="https://github.com/gitleaks/gitleaks">gitleaks</a>. <code>cuddio rules</code> lists them all with their state under your config.</p>
+    <h2>What Cuddio detects</h2>
+    <p class="sub">242 rules: 29 of Cuddio's own, and 213 derived from <a href="https://github.com/gitleaks/gitleaks">gitleaks</a>. <code>cuddio rules</code> lists them all with their state under your config.</p>
 
     <h3>Personal data (PII)</h3>
     <div class="table-wrap"><table>
@@ -393,13 +393,13 @@ mapping:
   <div class="wrap">
     <h2>Security and your data</h2>
     <div class="grid">
-      <div class="card"><h3>Nothing is sent</h3><p>cuddio never makes a network connection. The tests fail if a network package is imported or any network code is linked into the binary.</p></div>
+      <div class="card"><h3>Nothing is sent</h3><p>Cuddio never makes a network connection. The tests fail if a network package is imported or any network code is linked into the binary.</p></div>
       <div class="card"><h3>Your input is never changed</h3><p>Input files are only read. <code>-o</code> writes a new file through a temporary file and refuses the input itself, even through a link.</p></div>
       <div class="card"><h3>Mappings are opt-in</h3><p>Only <code>--map</code> stores anything: an owner-only, unencrypted file in your cache directory that expires after an hour. <code>cuddio forget</code> deletes it now.</p></div>
       <div class="card"><h3>Values stay out of output</h3><p>Errors, <code>--check</code> and <code>--report</code> never print a matched value, and config errors never repeat what is in your config.</p></div>
     </div>
     <div class="notice">
-      <p><strong>Use at your own risk.</strong> Redaction is best effort: a clean result is not a guarantee that no secret or personal data remains, so review the output before you share it. cuddio reduces the risk of sharing personal data; it does not by itself make sharing it compliant with UK GDPR. It does not detect names or addresses in free text, or secrets with no recognisable shape. The copy you made before running <code>--clip</code> stays in any clipboard history.</p>
+      <p><strong>Use at your own risk.</strong> Redaction is best effort: a clean result is not a guarantee that no secret or personal data remains, so review the output before you share it. Cuddio reduces the risk of sharing personal data; it does not by itself make sharing it compliant with UK GDPR. It does not detect names or addresses in free text, or secrets with no recognisable shape. The copy you made before running <code>--clip</code> stays in any clipboard history.</p>
       <p>Details, and how to report a problem privately, are in <a href="https://github.com/phoenix1331/cuddio/blob/main/SECURITY.md">SECURITY.md</a>.</p>
     </div>
   </div>
@@ -415,7 +415,7 @@ mapping:
       <a href="https://github.com/phoenix1331/cuddio/blob/main/CONTRIBUTING.md">Contributing</a>
       <a href="https://github.com/phoenix1331/cuddio/blob/main/LICENSE">MIT licence</a>
     </div>
-    <p>cuddio includes rules derived from <a href="https://github.com/gitleaks/gitleaks">gitleaks</a> (MIT licence, Copyright (c) 2019 Zachary Rice). Every example on this page uses fake data.</p>
+    <p>Cuddio includes rules derived from <a href="https://github.com/gitleaks/gitleaks">gitleaks</a> (MIT licence, Copyright (c) 2019 Zachary Rice). Every example on this page uses fake data.</p>
   </div>
 </footer>
 

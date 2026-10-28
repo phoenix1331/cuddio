@@ -1,4 +1,4 @@
-# Contributing to cuddio
+# Contributing to Cuddio
 
 Thanks for helping. Bug reports, fixes and new rules are all welcome.
 
@@ -6,7 +6,7 @@ Never paste real secrets or personal data into an issue or pull request, even re
 
 ## Setup
 
-cuddio is developed in WSL (Ubuntu) on Windows, and works the same on Linux and macOS. No Docker, database servers or Makefile are needed: SQL fixtures are plain text, and `scripts/*.sh` are the only commands.
+Cuddio is developed in WSL (Ubuntu) on Windows, and works the same on Linux and macOS. No Docker, database servers or Makefile are needed: SQL fixtures are plain text, and `scripts/*.sh` are the only commands.
 
 1. Install Go 1.26 or later from [go.dev/dl](https://go.dev/dl/). In WSL, unpack it to `/usr/local/go` and add `/usr/local/go/bin` and `$HOME/go/bin` to your `PATH` in `~/.profile`.
 2. Install the tools the gate uses:
@@ -45,7 +45,7 @@ The tests include a no-network check: they fail if the build gains a network pac
 
 `sh scripts/e2e.sh` builds the binary and runs every command on generated input, checking output and exit codes. It points the config and cache folders at a temporary directory, so your own settings and stored mappings are never touched. CI runs it on Linux, plus macOS and Windows (Git Bash, and `.github/scripts/e2e.ps1` under Windows PowerShell 5.1) when the workflow is started by hand.
 
-`sh scripts/render-gifs.sh` re-records the GIFs in `docs/gifs/` from the VHS tapes in `tapes/` (all six, or name some: `sh scripts/render-gifs.sh hero sql`). It needs [VHS](https://github.com/charmbracelet/vhs), `ttyd` and `ffmpeg`, runs in WSL or Linux, and records each tape in a fresh copy of `examples/` with its own config and cache. The clipboard tape renders only in WSL, and puts your clipboard back afterwards. Re-render after any change to cuddio's output or the examples.
+`sh scripts/render-gifs.sh` re-records the GIFs in `docs/gifs/` from the VHS tapes in `tapes/` (all six, or name some: `sh scripts/render-gifs.sh hero sql`). It needs [VHS](https://github.com/charmbracelet/vhs), `ttyd` and `ffmpeg`, runs in WSL or Linux, and records each tape in a fresh copy of `examples/` with its own config and cache. The clipboard tape renders only in WSL, and puts your clipboard back afterwards. Re-render after any change to Cuddio's output or the examples.
 
 In WSL, `sh scripts/test-windows.sh` runs every package's tests as native Windows programs: each test binary is cross-compiled for Windows and started through WSL's Windows interop, so Windows behaviour can be checked without CI.
 

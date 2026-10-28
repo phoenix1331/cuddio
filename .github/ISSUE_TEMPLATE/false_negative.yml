@@ -1,5 +1,5 @@
 name: False negative
-description: cuddio missed a secret or personal data
+description: Cuddio missed a secret or personal data
 labels: [false negative]
 body:
   - type: markdown
@@ -10,7 +10,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: cuddio version
+      label: Cuddio version
       placeholder: cuddio v0.1.0
     validations:
       required: true

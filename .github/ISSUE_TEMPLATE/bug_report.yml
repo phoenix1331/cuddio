@@ -1,16 +1,16 @@
 name: Bug report
-description: cuddio crashed, errored, or did something other than what the docs say
+description: Cuddio crashed, errored, or did something other than what the docs say
 labels: [bug]
 body:
   - type: markdown
     attributes:
       value: |
         **Never paste real secrets or personal data here, even partly redacted.** Issues are public. Replace every real value with an obviously fake one in the same shape (`alice@example.com`, `07700 900123`, `203.0.113.9`).
-        If cuddio printed, stored or sent a value it should not have, report it privately as a security issue instead.
+        If Cuddio printed, stored or sent a value it should not have, report it privately as a security issue instead.
   - type: input
     id: version
     attributes:
-      label: cuddio version
+      label: Cuddio version
       description: Output of `cuddio --version`
       placeholder: cuddio v0.1.0
     validations:
@@ -46,6 +46,6 @@ body:
     id: actual
     attributes:
       label: What happened
-      description: Output and error messages (cuddio never prints matched values, but check before pasting)
+      description: Output and error messages (Cuddio never prints matched values, but check before pasting)
     validations:
       required: true

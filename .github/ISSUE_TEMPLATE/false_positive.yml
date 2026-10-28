@@ -1,5 +1,5 @@
 name: False positive
-description: cuddio hid something that is not a secret or personal data
+description: Cuddio hid something that is not a secret or personal data
 labels: [false positive]
 body:
   - type: markdown
@@ -10,7 +10,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: cuddio version
+      label: Cuddio version
       placeholder: cuddio v0.1.0
     validations:
       required: true
@@ -26,7 +26,7 @@ body:
     id: output
     attributes:
       label: Output
-      description: What cuddio wrote. `cuddio --report` on the same input names the rule that matched
+      description: What Cuddio wrote. `cuddio --report` on the same input names the rule that matched
       render: text
     validations:
       required: true

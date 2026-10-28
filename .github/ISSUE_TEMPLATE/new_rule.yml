@@ -1,5 +1,5 @@
 name: New rule
-description: Suggest a kind of secret or personal data cuddio should detect
+description: Suggest a kind of secret or personal data Cuddio should detect
 labels: [new rule]
 body:
   - type: markdown

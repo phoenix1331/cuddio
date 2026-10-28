@@ -194,6 +194,8 @@ scoop install cuddio</pre><button class="copy" type="button">Copy</button></div>
       <div class="cmd"><div class="label">Go 1.26 or later</div><div class="line"><pre>go install github.com/phoenix1331/cuddio@latest</pre><button class="copy" type="button">Copy</button></div></div>
     </div>
 
+    <p class="sub" style="margin-top:16px">Homebrew, Scoop and the release download need nothing else installed. <code>go install</code> needs <a href="https://go.dev/dl/">Go 1.26 or later</a>, and puts <code>cuddio</code> in Go's <code>bin</code> folder (<code>$(go env GOPATH)/bin</code>), which needs to be on your <code>PATH</code>; the <a href="https://github.com/phoenix1331/cuddio#installation">README</a> has step-by-step instructions.</p>
+
     <h3>Quick start</h3>
 <pre class="code"><span class="p">$ </span>cat storage/logs/laravel.log | cuddio      <span class="c"># clean stdin to stdout</span>
 <span class="p">$ </span>cuddio app.log -o app.clean.log           <span class="c"># write to a new file, never the input</span>

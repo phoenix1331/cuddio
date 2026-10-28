@@ -49,6 +49,8 @@ Other tools cover parts of this, and one of them may suit you better:
 
 ## Installation
 
+Cuddio is a single program with nothing else to install. Homebrew, Scoop and the release download need no other tools; only `go install` needs Go.
+
 **Homebrew** (macOS and Linux):
 
 ```bash
@@ -62,13 +64,28 @@ scoop bucket add phoenix1331 https://github.com/phoenix1331/scoop-bucket
 scoop install cuddio
 ```
 
-**Go** 1.26 or later:
+**Release binary:** download the archive for your platform (Linux, macOS and Windows, amd64 and arm64) from [GitHub Releases](https://github.com/phoenix1331/cuddio/releases) and unpack it. On Linux and macOS, move `cuddio` somewhere on your `PATH`, such as `sudo mv cuddio /usr/local/bin/`. On Windows, put `cuddio.exe` in a folder that is on your `Path`, or add its folder under *Settings, System, About, Advanced system settings, Environment Variables*.
+
+**Go** 1.26 or later, if you have Go or want to build from source:
 
 ```bash
 go install github.com/phoenix1331/cuddio@latest
 ```
 
-**Release binary:** download the archive for your platform (Linux, macOS and Windows, amd64 and arm64) from [GitHub Releases](https://github.com/phoenix1331/cuddio/releases), unpack it and put `cuddio` on your `PATH`.
+<details>
+<summary>Don't have Go?</summary>
+
+1. Install Go 1.26 or later:
+   - **macOS:** `brew install go`, or the installer from [go.dev/dl](https://go.dev/dl/)
+   - **Windows:** `winget install GoLang.Go`, or the installer from [go.dev/dl](https://go.dev/dl/)
+   - **Linux and WSL:** the archive from [go.dev/dl](https://go.dev/dl/), following [its install steps](https://go.dev/doc/install). Distribution packages such as Ubuntu's `golang-go` are often older than 1.26
+2. Check it works in a new terminal: `go version`
+3. `go install` puts `cuddio` in Go's own `bin` folder, which may not be on your `PATH` yet:
+   - **macOS, Linux and WSL:** add `export PATH="$PATH:$(go env GOPATH)/bin"` to `~/.profile` or `~/.zshrc`, then open a new terminal
+   - **Windows:** the Go installer adds `%USERPROFILE%\go\bin` for you; open a new terminal
+4. Run `go install github.com/phoenix1331/cuddio@latest`, then `cuddio --version`
+
+</details>
 
 ## Usage
 

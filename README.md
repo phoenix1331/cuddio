@@ -10,9 +10,8 @@
 <p align="center">
   <a href="https://github.com/phoenix1331/cuddio/actions/workflows/test.yml"><img src="https://github.com/phoenix1331/cuddio/actions/workflows/test.yml/badge.svg" alt="tests"></a>
   <a href="https://pkg.go.dev/github.com/phoenix1331/cuddio"><img src="https://pkg.go.dev/badge/github.com/phoenix1331/cuddio.svg" alt="Go Reference"></a>
-  <a href="https://goreportcard.com/report/github.com/phoenix1331/cuddio"><img src="https://goreportcard.com/badge/github.com/phoenix1331/cuddio" alt="Go Report Card"></a>
   <a href="https://github.com/phoenix1331/cuddio/releases"><img src="https://img.shields.io/github/v/release/phoenix1331/cuddio" alt="release"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/phoenix1331/cuddio" alt="licence: MIT"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/phoenix1331/cuddio?label=licence" alt="licence: MIT"></a>
 </p>
 
 Cuddio hides **secrets** and **PII** (personally identifiable information) in logs, `.env` files and MySQL, PostgreSQL and SQLite dumps before you share them with AI tools. API keys, passwords, emails, phone numbers, card numbers and IP addresses become placeholders like `<EMAIL_1>`, so the AI can still tell one customer from another, and `cuddio restore` puts the real values back into its answer. It runs locally as a single binary and never makes a network connection.
